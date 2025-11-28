@@ -91,6 +91,7 @@ export interface CalculationResult {
   tongSoNguoi: number;
   
   tongPhiGoc: number; // Sum of all groups base premium
+  tongPhiThuanToiThieu: number; // Added to interface
   
   heSoThoiHan: number;
   phiSauThoiHan: number;

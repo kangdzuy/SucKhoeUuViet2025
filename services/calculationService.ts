@@ -137,6 +137,7 @@ export const calculatePremium = (
     tongSoNhom: groups.length,
     tongSoNguoi,
     tongPhiGoc,
+    tongPhiThuanToiThieu,
     heSoThoiHan,
     phiSauThoiHan,
     heSoDongChiTra,
