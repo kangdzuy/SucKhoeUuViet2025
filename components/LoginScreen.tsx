@@ -54,7 +54,7 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
            <div className="bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20">
               <ShieldCheck className="w-10 h-10 text-white" />
            </div>
-           <h2 className="text-2xl font-bold text-white mb-1">Phú Hưng Assurance</h2>
+           <h2 className="text-2xl font-bold text-white mb-1">Phu Hung Assurance</h2>
            <p className="text-blue-100 text-sm">Hệ Thống Tính Phí Bảo Hiểm</p>
         </div>
 
@@ -76,7 +76,7 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-phuhung-blue/20 focus:border-phuhung-blue outline-none transition-all"
-                    placeholder="example@phuhung.com"
+                    placeholder="example@pacvn.vn"
                     autoFocus
                   />
                 </div>

@@ -19,6 +19,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
     phamViDiaLy: Geography.VIETNAM,
     thoiHanBaoHiem: Duration.TREN_9_THANG,
     mucDongChiTra: CoPay.MUC_0,
+    isTaiTuc: false,
     tyLeBoiThuongNamTruoc: 0
   });
 

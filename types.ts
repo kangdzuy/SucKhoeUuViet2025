@@ -31,46 +31,92 @@ export enum Gender {
   NU = 'Nu'
 }
 
+// Config for Benefit H (Income Support)
+export enum BenefitHMethod {
+  THEO_LUONG = 'TheoLuong',
+  THEO_SO_TIEN = 'TheoSoTien'
+}
+
+// Config for Benefit A (Accident)
+export enum BenefitAMethod {
+  THEO_LUONG = 'TheoLuong',
+  THEO_SO_TIEN = 'TheoSoTien'
+}
+
+export enum BenefitASalaryOption {
+  OP_3_5 = '3-5',
+  OP_6_9 = '6-9',
+  OP_10_12 = '10-12'
+}
+
 // Interfaces
 export interface GeneralInfo {
-  // soHopDong removed
   tenKhachHang: string;
   loaiHopDong: ContractType;
   phamViDiaLy: Geography;
   thoiHanBaoHiem: Duration;
   mucDongChiTra: CoPay;
-  tyLeBoiThuongNamTruoc: number; // Percentage 0-100+
+  isTaiTuc: boolean; // True = Renewal, False = New Business
+  tyLeBoiThuongNamTruoc: number; // Percentage 0-100+ (Only applicable if isTaiTuc = true)
 }
 
 export interface Benefits {
+  // Quyen loi A - Tai nan (Updated)
   chonQuyenLoiA: boolean;
-  stbhA: number;
+  methodA: BenefitAMethod;
+  luongA: number; // Salary for A calculation
+  soThangLuongA: number; // Max 30 for main benefit
+  stbhA: number; // Main SI (Death/PTD)
+  
+  // A - Sub 1: Tro cap luong
+  subA_TroCap: boolean;
+  subA_TroCap_Option: BenefitASalaryOption;
+  
+  // A - Sub 2: Y te
+  subA_YTe: boolean;
+  stbhA_YTe: number;
+
   chonQuyenLoiB: boolean;
   stbhB: number;
+  
   chonQuyenLoiC: boolean;
   stbhC: number;
-  chonQuyenLoiD: boolean;
+  
+  chonQuyenLoiD: boolean; // Thai san - Depends on C
   stbhD: number;
-  chonQuyenLoiE: boolean;
+  
+  chonQuyenLoiE: boolean; // Ngoai tru - Depends on C
   stbhE: number;
-  chonQuyenLoiF: boolean;
+  
+  chonQuyenLoiF: boolean; // Nha khoa - Depends on C
   stbhF: number;
-  chonQuyenLoiG: boolean;
+  
+  chonQuyenLoiG: boolean; // Nuoc ngoai - Depends on C
   stbhG: number;
+  
+  // Quyen loi H - Tro cap mat giam thu nhap
   chonQuyenLoiH: boolean;
-  stbhH: number;
-  chonQuyenLoiI: boolean;
+  methodH: BenefitHMethod;
+  luongTrungBinh: number; // For Method Salary
+  soThangLuong: number; // 3, 6, 9, 12
+  stbhH: number; // Final SI for calc
+  
+  chonQuyenLoiI: boolean; // Ngo doc - Depends on A
   stbhI: number;
 }
 
-// Renamed from InsuredPerson to InsuranceGroup to handle both Individuals (size=1) and Groups
 export interface InsuranceGroup extends Benefits {
   id: string;
-  tenNhom: string; // Group Name or Individual Name
-  soNguoi: number; // >= 1
-  tuoiTrungBinh: number; // Used for calculation
+  tenNhom: string; 
   
-  // Optional for UI convenience in "Individual" mode to auto-calc average age
+  // Group specific fields (PDF Page 6)
+  soNguoi: number; 
+  soNam: number;
+  soNu: number;
+  tongSoTuoi: number;
+  tuoiTrungBinh: number; 
+  
+  // Individual specific fields
   ngaySinh?: string; 
   gioiTinh?: Gender;
 }
@@ -82,7 +128,7 @@ export interface GroupResult {
   tuoiTrungBinh: number;
   tongPhiGoc: number;
   tongPhiThuanToiThieu: number;
-  details: Record<string, number>; // Breakdown per benefit (total for the group)
+  details: Record<string, number>; 
 }
 
 export interface CalculationResult {
@@ -90,8 +136,8 @@ export interface CalculationResult {
   tongSoNhom: number;
   tongSoNguoi: number;
   
-  tongPhiGoc: number; // Sum of all groups base premium
-  tongPhiThuanToiThieu: number; // Added to interface
+  tongPhiGoc: number;
+  tongPhiThuanToiThieu: number;
   
   heSoThoiHan: number;
   phiSauThoiHan: number;

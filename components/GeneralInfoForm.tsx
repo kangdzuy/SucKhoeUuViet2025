@@ -1,6 +1,6 @@
 import React from 'react';
 import { GeneralInfo, ContractType, Geography, Duration, CoPay } from '../types';
-import { Info, Building2, Globe, Calendar, Percent, Briefcase } from 'lucide-react';
+import { Info, Building2, Globe, Calendar, Percent, Briefcase, RefreshCw } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
 interface Props {
@@ -16,6 +16,8 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
   // Styles updated: Bg #F9FAFB, Border #E0E4EC, Text #111827
   const inputClass = "w-full bg-[#F9FAFB] border-[#E0E4EC] rounded-[6px] shadow-sm focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue px-3 py-2.5 border text-[#111827] placeholder-[#9CA3AF] transition-all text-sm";
   const labelClass = "block text-sm font-medium text-phuhung-text mb-1.5 flex items-center";
+
+  const isGroup = info.loaiHopDong === ContractType.NHOM;
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-[8px] shadow-sm border border-phuhung-border">
@@ -42,7 +44,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-phuhung-blue" /> Loại Hợp Đồng</span>
-            <TooltipHelp text="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho nhiều nhóm người, mỗi nhóm có thể có số người và tuổi trung bình khác nhau." />
+            <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho nhiều nhóm người, mỗi nhóm có thể có số người và tuổi trung bình khác nhau." />
           </label>
           <div className="flex gap-4 mt-2">
              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#F9FAFB] transition-colors border border-transparent hover:border-[#E0E4EC]">
@@ -73,7 +75,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-phuhung-blue" /> Phạm Vi Địa Lý</span>
-            <TooltipHelp text="Phạm vi chi trả bảo hiểm. Chọn 'Việt Nam', 'Châu Á' hoặc 'Toàn Cầu' sẽ ảnh hưởng đến tỷ lệ phí gốc." />
+            <TooltipHelp content="Phạm vi chi trả bảo hiểm. Chọn 'Việt Nam', 'Châu Á' hoặc 'Toàn Cầu' sẽ ảnh hưởng đến tỷ lệ phí gốc." />
           </label>
           <select
             value={info.phamViDiaLy}
@@ -81,15 +83,15 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
             className={inputClass}
           >
             <option value={Geography.VIETNAM}>Việt Nam</option>
-            <option value={Geography.CHAU_A}>Châu Á</option>
-            <option value={Geography.TOAN_CAU}>Toàn Cầu</option>
+            <option value={Geography.CHAU_A}>Châu Á (x1.5)</option>
+            <option value={Geography.TOAN_CAU}>Toàn Cầu (x2.5)</option>
           </select>
         </div>
 
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-phuhung-blue" /> Thời Hạn</span>
-            <TooltipHelp text="Áp dụng bảng tỷ lệ phí ngắn hạn: 3 tháng (30%), 6 tháng (50%), 9 tháng (75%) hoặc đủ năm (100%)." />
+            <TooltipHelp content="Áp dụng bảng tỷ lệ phí ngắn hạn: 3 tháng (30%), 6 tháng (50%), 9 tháng (75%) hoặc đủ năm (100%)." />
           </label>
           <select
             value={info.thoiHanBaoHiem}
@@ -106,7 +108,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Percent className="w-4 h-4 text-phuhung-blue" /> Mức Đồng Chi Trả</span>
-            <TooltipHelp text="Nếu khách hàng đồng ý cùng chi trả % chi phí y tế (Co-pay), phí bảo hiểm sẽ được giảm tương ứng." />
+            <TooltipHelp content="Nếu khách hàng đồng ý cùng chi trả % chi phí y tế (Co-pay), phí bảo hiểm sẽ được giảm tương ứng." />
           </label>
           <select
             value={info.mucDongChiTra}
@@ -118,20 +120,45 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
             ))}
           </select>
         </div>
+        
+        {/* Renewal Switch */}
+        <div className="flex flex-col">
+            <label className={labelClass}>
+                <span className="flex items-center gap-1.5"><RefreshCw className="w-4 h-4 text-phuhung-blue" /> Loại Đơn</span>
+                <TooltipHelp content="Nếu là đơn tái tục, có thể áp dụng điều chỉnh phí dựa trên tỷ lệ bồi thường năm trước." />
+            </label>
+            <div className="flex items-center mt-2 bg-[#F9FAFB] border border-[#E0E4EC] rounded-[6px] p-2">
+                <span className={`text-sm mr-3 font-medium ${!info.isTaiTuc ? 'text-phuhung-blue' : 'text-gray-500'}`}>Mới</span>
+                <button
+                    onClick={() => handleChange('isTaiTuc', !info.isTaiTuc)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-phuhung-blue focus:ring-offset-2 ${
+                        info.isTaiTuc ? 'bg-phuhung-blue' : 'bg-gray-300'
+                    }`}
+                >
+                    <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            info.isTaiTuc ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                </button>
+                <span className={`text-sm ml-3 font-medium ${info.isTaiTuc ? 'text-phuhung-blue' : 'text-gray-500'}`}>Tái Tục</span>
+            </div>
+        </div>
 
+        {/* Loss Ratio - Only show if Renewal & Group */}
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-phuhung-blue" /> Tỷ Lệ Bồi Thường (%)</span>
-            <TooltipHelp text="Chỉ áp dụng cho hợp đồng Nhóm. Dùng để tăng hoặc giảm phí dựa trên lịch sử bồi thường (Loss Ratio) năm trước." />
+            <TooltipHelp content="Chỉ áp dụng cho đơn Tái Tục của nhóm. Dùng để tăng hoặc giảm phí dựa trên lịch sử bồi thường (Loss Ratio) năm trước." />
           </label>
           <input
             type="number"
             min="0"
-            disabled={info.loaiHopDong !== ContractType.NHOM}
+            disabled={!isGroup || !info.isTaiTuc}
             value={info.tyLeBoiThuongNamTruoc}
             onChange={(e) => handleChange('tyLeBoiThuongNamTruoc', parseFloat(e.target.value) || 0)}
-            className={`${inputClass} ${info.loaiHopDong !== ContractType.NHOM ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : ''}`}
-            placeholder={info.loaiHopDong !== ContractType.NHOM ? "Chỉ áp dụng cho nhóm" : "0"}
+            className={`${inputClass} ${(!isGroup || !info.isTaiTuc) ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : ''}`}
+            placeholder={!isGroup ? "Chỉ áp dụng cho nhóm" : !info.isTaiTuc ? "Chỉ áp dụng tái tục" : "0"}
           />
         </div>
       </div>
