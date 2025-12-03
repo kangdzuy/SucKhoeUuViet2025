@@ -125,14 +125,8 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
       }
 
       // 2. Group Avg Age Calculation
-      if (contractType === ContractType.NHOM) {
-         // Recalculate Avg Age if Total Age or Count changes
-         if (updated.soNguoi > 0 && updated.tongSoTuoi > 0) {
-            updated.tuoiTrungBinh = Math.ceil(updated.tongSoTuoi / updated.soNguoi);
-         } else {
-            updated.tuoiTrungBinh = 0;
-         }
-      }
+      // REMOVED: Previous logic was resetting tuoiTrungBinh to 0 because tongSoTuoi was 0.
+      // Now we allow direct input of tuoiTrungBinh for groups.
 
       // 3. Benefit H SI Calculation (If By Salary)
       if (updated.chonQuyenLoiH && updated.methodH === BenefitHMethod.THEO_LUONG) {
