@@ -109,7 +109,14 @@ const ResultsSummary: React.FC<Props> = ({ result }) => {
                     <span className="font-mono text-sm text-gray-600 font-medium">{formatMoney(result.phiThuanSauHeSo)}</span>
                 </div>
 
-                {result.isFloorApplied ? (
+                {result.phiCuoi <= 0 ? (
+                    <div className="flex items-center gap-2 bg-red-50 p-3 rounded-md border border-red-200">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                        <span className="text-sm text-red-800 font-medium">
+                            Phí không hợp lệ.
+                        </span>
+                    </div>
+                ) : result.isFloorApplied ? (
                     <div className="flex items-start gap-3 bg-orange-50 p-3 rounded-md border border-orange-200">
                         <AlertCircle className="w-5 h-5 text-phuhung-orange mt-0.5 flex-shrink-0" />
                         <div>

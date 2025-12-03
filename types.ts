@@ -71,7 +71,8 @@ export interface Benefits {
   // A - Sub 1: Tro cap luong
   subA_TroCap: boolean;
   subA_TroCap_Option: BenefitASalaryOption;
-  
+  soThangLuongTroCap: number; // Số tháng cụ thể cho trợ cấp (3-12)
+
   // A - Sub 2: Y te
   subA_YTe: boolean;
   stbhA_YTe: number;

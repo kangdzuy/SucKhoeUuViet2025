@@ -5,7 +5,7 @@ import ResultsSummary from './ResultsSummary';
 import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult } from '../types';
 import { calculatePremium } from '../services/calculationService';
 import { exportToExcel } from '../services/excelExport';
-import { ShieldCheck, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { FileSpreadsheet, ArrowLeft } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
@@ -44,20 +44,24 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
       {/* Header */}
       <header className="bg-phuhung-blue text-white shadow-md sticky top-0 z-40">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
              <button 
                 onClick={onBack}
-                className="p-2 mr-1 hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
                 title="Quay lại danh sách sản phẩm"
              >
                 <ArrowLeft className="w-5 h-5 text-white" />
              </button>
-            <div className="bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/20">
-               <ShieldCheck className="w-6 h-6 text-white" />
+            <div className="bg-white px-3 py-1.5 rounded-md shadow-sm h-10 flex items-center">
+               <img 
+                  src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
+                  alt="Phu Hung Assurance" 
+                  className="h-full w-auto object-contain"
+               />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-wide uppercase leading-tight">Phú Hưng Assurance</span>
-              <span className="text-[10px] text-blue-100 font-light tracking-wider opacity-80">Ưu Việt 2025</span>
+            <div className="flex flex-col border-l border-blue-400/30 pl-4 h-10 justify-center">
+              <span className="font-bold text-lg leading-none">Ưu Việt 2025</span>
+              <span className="text-[11px] text-blue-100 font-light opacity-80 uppercase tracking-wide">Công cụ tính phí</span>
             </div>
           </div>
 
@@ -73,7 +77,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
           <div>
              <h1 className="text-2xl font-bold text-phuhung-text">Bảo Hiểm Sức Khỏe Ưu Việt</h1>
-             <p className="text-phuhung-textSec mt-1 text-sm">Công cụ tính phí tự động & xuất bảng chào giá.</p>
+             <p className="text-phuhung-textSec mt-1 text-sm">Nhập thông tin để tính phí tự động.</p>
           </div>
           
           <button 

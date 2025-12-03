@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Car, Heart, Briefcase, PlusCircle, LogOut } from 'lucide-react';
+import { Car, Heart, Briefcase, PlusCircle, LogOut } from 'lucide-react';
 
 interface Props {
   onSelectProduct: (productId: string) => void;
@@ -38,10 +38,14 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
   return (
     <div className="min-h-screen bg-phuhung-bg font-sans">
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-phuhung-blue" />
-            <span className="font-bold text-gray-800 text-lg">Phú Hưng Portal</span>
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+            <img 
+               src="https://www.pacvn.vn/wp-content/uploads/2016/06/logo.png" 
+               alt="Phu Hung Assurance" 
+               className="h-10 w-auto object-contain"
+            />
+            <span className="font-bold text-gray-400 text-lg border-l border-gray-300 pl-3 h-6 flex items-center">Portal</span>
         </div>
         <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 hidden sm:block">Xin chào, <b>{userEmail}</b></span>

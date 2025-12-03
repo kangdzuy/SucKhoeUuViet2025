@@ -94,13 +94,17 @@ export const calculatePremium = (
              addToTotal('A_Chinh', siMainA * rateA, siMainA * rateAMin);
         }
 
-        // 2. Sub Benefit: Allowance (Tro Cap Luong)
+        // 2. Sub Benefit: Allowance (Tro Cap Luong) - DEPENDS ON A
         if (group.subA_TroCap && group.subA_TroCap_Option) {
-            let multiplier = 5; // Default max for 3-5
-            if (group.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) multiplier = 9;
-            if (group.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) multiplier = 12;
+            // Use user selected months, fallback to max of option if not set
+            let months = group.soThangLuongTroCap;
+            if (!months || months <= 0) {
+                 if (group.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) months = 9;
+                 else if (group.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) months = 12;
+                 else months = 5;
+            }
             
-            const siAllowance = (group.luongA || 0) * multiplier;
+            const siAllowance = (group.luongA || 0) * months;
             
             if (siAllowance > 0) {
                 const rateSub1 = getBaseRate('A_ALLOWANCE', avgAge, info.phamViDiaLy, siAllowance, { option: group.subA_TroCap_Option });
@@ -109,11 +113,18 @@ export const calculatePremium = (
             }
         }
 
-        // 3. Sub Benefit: Medical (Y Te)
+        // 3. Sub Benefit: Medical (Y Te) - DEPENDS ON A
         if (group.subA_YTe && group.stbhA_YTe > 0) {
              const rateSub2 = getBaseRate('A_MEDICAL', avgAge, info.phamViDiaLy, group.stbhA_YTe);
              const rateSub2Min = getMinPureRate('A_MEDICAL', avgAge, info.phamViDiaLy, group.stbhA_YTe);
              addToTotal('A_YTe', group.stbhA_YTe * rateSub2, group.stbhA_YTe * rateSub2Min);
+        }
+
+        // 4. Benefit I (Poisoning) - DEPENDS ON A
+        if (group.chonQuyenLoiI && group.stbhI > 0) {
+             const rateI = getBaseRate('I', avgAge, info.phamViDiaLy, group.stbhI);
+             const rateIMin = getMinPureRate('I', avgAge, info.phamViDiaLy, group.stbhI);
+             addToTotal('I', group.stbhI * rateI, group.stbhI * rateIMin);
         }
     }
 
@@ -126,33 +137,47 @@ export const calculatePremium = (
         }
     };
 
+    // Independent Benefits (Or Main)
     processSimpleBenefit('B', group.chonQuyenLoiB, group.stbhB);
-    processSimpleBenefit('C', group.chonQuyenLoiC, group.stbhC);
     
-    // Maternity Check (Safety guard against invalid inputs)
-    // Rule: Female Only & > 1 Person
-    const isMaleIndividual = info.loaiHopDong === ContractType.CAN_HAN && group.gioiTinh === Gender.NAM;
-    const isSinglePerson = group.soNguoi <= 1;
-    const canBuyMaternity = !isMaleIndividual && !isSinglePerson;
+    // Main C (Inpatient)
+    if (group.chonQuyenLoiC && group.stbhC > 0) {
+        const rateC = getBaseRate('C', avgAge, info.phamViDiaLy, group.stbhC);
+        const rateCMin = getMinPureRate('C', avgAge, info.phamViDiaLy, group.stbhC);
+        addToTotal('C', group.stbhC * rateC, group.stbhC * rateCMin);
 
-    if (canBuyMaternity) {
-        processSimpleBenefit('D', group.chonQuyenLoiD, group.stbhD);
-    }
+        // --- BENEFITS DEPENDENT ON C ---
+        
+        // D (Maternity) - Extra checks for Female + Group
+        const isMaleIndividual = info.loaiHopDong === ContractType.CAN_HAN && group.gioiTinh === Gender.NAM;
+        const isSinglePerson = group.soNguoi <= 1;
+        const canBuyMaternity = !isMaleIndividual && !isSinglePerson;
 
-    processSimpleBenefit('E', group.chonQuyenLoiE, group.stbhE);
-    processSimpleBenefit('F', group.chonQuyenLoiF, group.stbhF);
-    processSimpleBenefit('G', group.chonQuyenLoiG, group.stbhG);
-
-    // Benefit H Logic (Income Support)
-    let siH = group.stbhH;
-    if (group.methodH === BenefitHMethod.THEO_LUONG) {
-        if (group.luongTrungBinh > 0 && group.soThangLuong > 0) {
-             siH = group.luongTrungBinh * group.soThangLuong;
+        if (canBuyMaternity) {
+            processSimpleBenefit('D', group.chonQuyenLoiD, group.stbhD);
         }
-    }
-    processSimpleBenefit('H', group.chonQuyenLoiH, siH);
 
-    processSimpleBenefit('I', group.chonQuyenLoiI, group.stbhI);
+        // G (Overseas)
+        processSimpleBenefit('G', group.chonQuyenLoiG, group.stbhG);
+
+        // H (Income Support)
+        let siH = group.stbhH;
+        if (group.methodH === BenefitHMethod.THEO_LUONG) {
+            if (group.luongTrungBinh > 0 && group.soThangLuong > 0) {
+                siH = group.luongTrungBinh * group.soThangLuong;
+            }
+        }
+        processSimpleBenefit('H', group.chonQuyenLoiH, siH);
+    }
+
+    // --- INDEPENDENT SUPPLEMENTARY BENEFITS (E, F) ---
+    // Previously dependent on C, now independent.
+    
+    // E (Outpatient)
+    processSimpleBenefit('E', group.chonQuyenLoiE, group.stbhE);
+
+    // F (Dental)
+    processSimpleBenefit('F', group.chonQuyenLoiF, group.stbhF);
 
     // Total for this group
     const groupTotalPhiGoc = groupPhiGocOnePerson * count;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InsuranceGroup, Gender, ContractType, BenefitHMethod, BenefitAMethod, BenefitASalaryOption } from '../types';
 import { isValidAgeDate } from '../services/calculationService';
 import { SI_BANDS_C, SI_BANDS_E, SI_BANDS_F } from '../constants';
-import { Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, ChevronRight, Check, AlertTriangle } from 'lucide-react';
+import { Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, Check } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
 interface Props {
@@ -25,6 +25,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     stbhA: 100000000,
     subA_TroCap: false,
     subA_TroCap_Option: BenefitASalaryOption.OP_3_5,
+    soThangLuongTroCap: 5, // Default for OP_3_5
     subA_YTe: false,
     stbhA_YTe: 20000000,
 
@@ -93,6 +94,21 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
   const updateGroup = (id: string, updates: Partial<InsuranceGroup>) => {
     onChange(groups.map(p => {
       if (p.id !== id) return p;
+      
+      // LOGIC: Reset dependent benefits if Main Benefit is turned OFF
+      if (updates.chonQuyenLoiA === false) {
+          updates.subA_TroCap = false;
+          updates.subA_YTe = false;
+          updates.chonQuyenLoiI = false; // I depends on A
+      }
+      
+      if (updates.chonQuyenLoiC === false) {
+          updates.chonQuyenLoiD = false; // Maternity (Still depends on C)
+          updates.chonQuyenLoiG = false; // Overseas (Still depends on C)
+          updates.chonQuyenLoiH = false; // Income Support (Still depends on C)
+          // E, F are independent
+      }
+
       const updated = { ...p, ...updates };
       
       // AUTO CALCULATION LOGIC
@@ -181,6 +197,14 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
         )}
     </div>
   );
+
+  const getAllowanceRange = (op: BenefitASalaryOption) => {
+    switch(op) {
+        case BenefitASalaryOption.OP_6_9: return { min: 6, max: 9 };
+        case BenefitASalaryOption.OP_10_12: return { min: 10, max: 12 };
+        default: return { min: 3, max: 5 }; // OP_3_5
+    }
+  };
 
   // Modal or Panel for editing details
   const renderEditBenefits = (group: InsuranceGroup) => {
@@ -321,16 +345,43 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                         <TooltipHelp content="Quyền lợi mở rộng của A: Trợ cấp trong thời gian điều trị tai nạn." />
                                      </div>
                                      {group.subA_TroCap && (
-                                         <div className="mt-2">
-                                             <select value={group.subA_TroCap_Option} 
-                                                     onChange={(e) => updateGroup(group.id, { subA_TroCap_Option: e.target.value as any })}
-                                                     className={inputClass}>
-                                                 <option value={BenefitASalaryOption.OP_3_5}>Từ 3 đến 5 tháng lương</option>
-                                                 <option value={BenefitASalaryOption.OP_6_9}>Từ 6 đến 9 tháng lương</option>
-                                                 <option value={BenefitASalaryOption.OP_10_12}>Từ 10 đến 12 tháng lương</option>
-                                             </select>
+                                         <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 bg-gray-50 p-2 rounded border border-gray-100">
+                                             <div className="col-span-2 md:col-span-1">
+                                                 <label className="text-xs text-gray-500 block mb-1">Gói trợ cấp</label>
+                                                 <select value={group.subA_TroCap_Option} 
+                                                         onChange={(e) => {
+                                                             const op = e.target.value as BenefitASalaryOption;
+                                                             // Auto set max months when option changes
+                                                             let defMonths = 5;
+                                                             if (op === BenefitASalaryOption.OP_6_9) defMonths = 9;
+                                                             if (op === BenefitASalaryOption.OP_10_12) defMonths = 12;
+                                                             updateGroup(group.id, { subA_TroCap_Option: op, soThangLuongTroCap: defMonths });
+                                                         }}
+                                                         className={inputClass}>
+                                                     <option value={BenefitASalaryOption.OP_3_5}>Gói 3-5 tháng</option>
+                                                     <option value={BenefitASalaryOption.OP_6_9}>Gói 6-9 tháng</option>
+                                                     <option value={BenefitASalaryOption.OP_10_12}>Gói 10-12 tháng</option>
+                                                 </select>
+                                             </div>
+                                             <div className="col-span-2 md:col-span-1">
+                                                {(() => {
+                                                    const range = getAllowanceRange(group.subA_TroCap_Option);
+                                                    return (
+                                                        <>
+                                                            <label className="text-xs text-gray-500 block mb-1">Số tháng ({range.min}-{range.max})</label>
+                                                            <input type="number" 
+                                                                value={group.soThangLuongTroCap}
+                                                                min={range.min} max={range.max}
+                                                                onChange={(e) => updateGroup(group.id, { soThangLuongTroCap: Number(e.target.value) })}
+                                                                className={inputClass}
+                                                            />
+                                                        </>
+                                                    );
+                                                })()}
+                                             </div>
+                                             
                                              {group.methodA === BenefitAMethod.THEO_SO_TIEN && (
-                                                 <div className="mt-2">
+                                                 <div className="col-span-2 mt-1">
                                                      <label className="text-xs text-red-500 block mb-1">* Cần nhập lương để tính quyền lợi này</label>
                                                      <input type="number" value={group.luongA} 
                                                             placeholder="Nhập lương tháng"
@@ -387,9 +438,9 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* C - Noi Tru (Base for many) */}
                  <BenefitCard 
                     code="C" title="Nội Trú (Ốm đau, bệnh tật)" 
-                    description="Chi phí nằm viện, phẫu thuật. Điều kiện bắt buộc cho QL bổ sung."
+                    description="Chi phí nằm viện, phẫu thuật. Đây là quyền lợi cơ sở nếu chọn các quyền lợi phụ thuộc."
                     selected={group.chonQuyenLoiC}
-                    tooltip="Chi trả chi phí nằm viện, phẫu thuật do ốm đau, bệnh tật. Đây là quyền lợi cơ sở để tham gia các quyền lợi bổ sung (D, E, F, G, H)."
+                    tooltip="Chi trả chi phí nằm viện, phẫu thuật do ốm đau, bệnh tật. Thường là cơ sở cho Thai sản và Trợ cấp."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiC: v })}
                  >
                     <select value={group.stbhC} 
@@ -406,7 +457,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
           <div>
              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-orange-200">
                  <span className="text-phuhung-orange font-bold text-base uppercase tracking-wider">II. Quyền Lợi Bảo Hiểm Bổ Sung (Phần 2)</span>
-                 <TooltipHelp content="Các quyền lợi này chỉ được tham gia khi đã chọn Quyền lợi C (Nội trú) hoặc A (đối với quyền lợi I)." />
+                 <TooltipHelp content="Các quyền lợi này có thể tham gia độc lập hoặc phụ thuộc vào C (như Thai sản)." />
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -425,13 +476,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                      <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
                  </BenefitCard>
 
-                 {/* E - Ngoai Tru (Requires C) */}
+                 {/* E - Ngoai Tru (Independent) */}
                  <BenefitCard 
                     code="E" title="Điều trị Ngoại Trú" 
-                    description="Khám bệnh, thuốc, xét nghiệm. (Yêu cầu tham gia C)"
+                    description="Khám bệnh, thuốc, xét nghiệm."
                     selected={group.chonQuyenLoiE}
-                    disabled={!hasC}
-                    dependencyText="Cần chọn Quyền lợi C"
                     tooltip="Chi trả chi phí khám chữa bệnh không nằm viện (thuốc kê đơn, xét nghiệm, X-quang, vật lý trị liệu)."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiE: v })}
                  >
@@ -441,13 +490,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     <p className="text-[10px] text-gray-400 mt-1 text-right">Hạn mức / năm</p>
                  </BenefitCard>
 
-                 {/* F - Nha Khoa (Requires C) */}
+                 {/* F - Nha Khoa (Independent) */}
                  <BenefitCard 
                     code="F" title="Chăm sóc Răng" 
-                    description="Khám, trám, nhổ, điều trị tủy. (Yêu cầu tham gia C)"
+                    description="Khám, trám, nhổ, điều trị tủy."
                     selected={group.chonQuyenLoiF}
-                    disabled={!hasC}
-                    dependencyText="Cần chọn Quyền lợi C"
                     tooltip="Chi trả chi phí khám răng, trám răng, nhổ răng, lấy cao răng và điều trị tủy."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiF: v })}
                  >
@@ -464,12 +511,13 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     selected={group.chonQuyenLoiG}
                     disabled={!hasC}
                     dependencyText="Cần chọn Quyền lợi C"
-                    tooltip="Mở rộng phạm vi địa lý khám chữa bệnh sang Thái Lan và Singapore. Hạn mức chi trả theo Quyền lợi C."
+                    tooltip="Mở rộng phạm vi địa lý khám chữa bệnh sang Thái Lan và Singapore. Yêu cầu tham gia quyền lợi C."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiG: v })}
                  >
-                     <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
-                        Tự động áp dụng theo hạn mức Quyền lợi C.
-                     </div>
+                     <input type="number" value={group.stbhG} 
+                           onChange={(e) => updateGroup(group.id, { stbhG: Number(e.target.value) })}
+                           className={inputClass} placeholder="Hạn mức mở rộng" />
+                     <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
                  </BenefitCard>
 
                  {/* H - Income Support (Requires C) */}
@@ -583,193 +631,148 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     );
   };
 
-  const isIndividual = contractType === ContractType.CAN_HAN;
-
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-[8px] shadow-sm border border-phuhung-border mt-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div className="flex items-center gap-3">
-            <div className="bg-blue-50 p-2 rounded-full">
-                {isIndividual ? <User className="w-5 h-5 text-phuhung-blue" /> : <Users className="w-5 h-5 text-phuhung-blue" />}
-            </div>
-            <h2 className="text-xl font-bold text-phuhung-blue">
-                {isIndividual ? '2. Thông Tin Người Được Bảo Hiểm' : '2. Danh Sách Nhóm Bảo Hiểm'}
-                <TooltipHelp 
-                    icon={<Info className="w-4 h-4 text-gray-400 hover:text-phuhung-blue" />}
-                    content="Nhập danh sách người được bảo hiểm. Đối với nhóm, bạn có thể nhập tổng số người theo nhóm tuổi trung bình." 
-                />
-            </h2>
-        </div>
-        
-        {!isIndividual && (
-          <button 
-            onClick={addGroup}
-            className="flex items-center gap-2 bg-phuhung-orange text-white px-5 py-2.5 rounded-[6px] hover:bg-phuhung-orangeHover font-bold text-sm shadow-md shadow-orange-100 transition-all transform hover:-translate-y-0.5"
-          >
-            <PlusCircle className="w-4 h-4" /> THÊM NHÓM
-          </button>
-        )}
-      </div>
+    <div className="space-y-6">
+       <div className="flex items-center gap-2 mb-4">
+           <div className="bg-blue-50 p-2 rounded-full">
+              {contractType === ContractType.NHOM ? <Users className="w-5 h-5 text-phuhung-blue" /> : <User className="w-5 h-5 text-phuhung-blue" />}
+           </div>
+           <h2 className="text-xl font-bold text-phuhung-blue">2. Danh Sách Người Được Bảo Hiểm</h2>
+       </div>
 
-      <div className="space-y-4">
-        {groups.map((group, index) => {
-            const dateValidation = group.ngaySinh ? isValidAgeDate(group.ngaySinh) : { valid: false, error: '' };
-            const groupValidation = !isIndividual && group.soNguoi !== (group.soNam + group.soNu) ? 'Tổng số Nam + Nữ không khớp với Số người' : null;
-            const sizeValidation = !isIndividual && group.soNguoi < 5 ? 'Nhóm phải từ 5 người trở lên' : null;
-            
-            return (
-              <div key={group.id} className={`border rounded-lg ${editingId === group.id ? 'border-phuhung-blue ring-1 ring-phuhung-blue/20' : 'border-phuhung-border'} overflow-hidden transition-all`}>
-                  
-                  {/* Group Row Header / Main Info */}
-                  <div className="bg-gray-50 p-4 flex flex-col md:flex-row md:items-center gap-4">
-                      
-                      {/* Info Fields */}
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4">
-                          {isIndividual ? (
-                            <>
-                                <div className="md:col-span-4">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Họ và Tên</label>
-                                    <input 
-                                        type="text" 
-                                        value={group.tenNhom} 
-                                        onChange={(e) => updateGroup(group.id, { tenNhom: e.target.value })}
-                                        className={inputClass} 
-                                        placeholder="Nhập tên người được bảo hiểm"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Giới tính</label>
-                                    <select 
-                                        value={group.gioiTinh}
-                                        onChange={(e) => updateGroup(group.id, { gioiTinh: e.target.value as Gender })}
-                                        className={inputClass}
-                                    >
-                                        <option value={Gender.NAM}>Nam</option>
-                                        <option value={Gender.NU}>Nữ</option>
-                                    </select>
-                                </div>
-                                <div className="md:col-span-3">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Ngày Sinh</label>
-                                    <input 
-                                        type="date" 
-                                        value={group.ngaySinh} 
-                                        onChange={(e) => updateGroup(group.id, { ngaySinh: e.target.value })}
-                                        className={`${inputClass} ${group.ngaySinh && !dateValidation.valid ? 'border-red-300 bg-red-50' : ''}`}
-                                    />
-                                    {group.ngaySinh && !dateValidation.valid && (
-                                        <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
-                                            <AlertTriangle className="w-3 h-3" />
-                                            {dateValidation.error}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Tuổi</label>
-                                    <div className="py-1.5 px-3 bg-gray-200 rounded text-sm font-bold text-gray-700 text-center">
-                                        {group.tuoiTrungBinh}
-                                    </div>
-                                </div>
-                            </>
+       {groups.map((group, index) => (
+          <div key={group.id} className="bg-white p-6 rounded-[8px] border border-phuhung-border shadow-sm hover:shadow-md transition-shadow">
+              {/* Group Summary Row */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-6">
+                      {/* Name Input */}
+                      <div className="md:col-span-1">
+                          <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1.5 mb-1.5">
+                             {contractType === ContractType.NHOM ? <Users className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                             {contractType === ContractType.NHOM ? 'Tên Nhóm' : 'Họ Tên'}
+                          </label>
+                          <input 
+                              type="text" 
+                              value={group.tenNhom}
+                              onChange={(e) => updateGroup(group.id, { tenNhom: e.target.value })}
+                              placeholder={contractType === ContractType.NHOM ? `Nhóm ${index + 1}` : "Nguyễn Văn A"}
+                              className={inputClass}
+                          />
+                      </div>
+
+                      {/* DOB or Avg Age */}
+                      <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1.5 mb-1.5">
+                              {contractType === ContractType.NHOM ? 'Tuổi Trung Bình' : 'Ngày Sinh'}
+                          </label>
+                          {contractType === ContractType.NHOM ? (
+                              <div className="relative">
+                                  <input 
+                                      type="number" 
+                                      value={group.tuoiTrungBinh || ''}
+                                      onChange={(e) => updateGroup(group.id, { tuoiTrungBinh: Number(e.target.value) })}
+                                      className={inputClass}
+                                      placeholder="Tuổi TB"
+                                  />
+                              </div>
                           ) : (
-                            <>
-                                <div className="md:col-span-1 text-center flex items-center justify-center">
-                                    <span className="bg-phuhung-blue text-white w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold">
-                                        {index + 1}
-                                    </span>
-                                </div>
-                                <div className="md:col-span-3">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center">
-                                        Tên Nhóm 
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={group.tenNhom} 
-                                        onChange={(e) => updateGroup(group.id, { tenNhom: e.target.value })}
-                                        className={inputClass} 
-                                        placeholder="VD: Ban Giám Đốc"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
-                                        Số Người
-                                        {sizeValidation && <TooltipHelp icon={<AlertTriangle className="w-3 h-3 text-red-500" />} content="Nhóm phải có từ 5 người trở lên." />}
-                                    </label>
-                                    <input type="number" min="0" value={group.soNguoi} 
-                                        onChange={(e) => updateGroup(group.id, { soNguoi: parseInt(e.target.value) || 0 })}
-                                        className={`${inputClass} ${groupValidation || sizeValidation ? 'border-red-300 bg-red-50' : ''}`} 
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1">Nam / Nữ</label>
-                                    <div className="flex gap-1">
-                                        <input type="number" min="0" placeholder="Nam" value={group.soNam} 
-                                            onChange={(e) => updateGroup(group.id, { soNam: parseInt(e.target.value) || 0 })}
-                                            className={inputClass} />
-                                        <input type="number" min="0" placeholder="Nữ" value={group.soNu} 
-                                            onChange={(e) => updateGroup(group.id, { soNu: parseInt(e.target.value) || 0 })}
-                                            className={inputClass} />
-                                    </div>
-                                    {groupValidation && <p className="text-[10px] text-red-500 mt-1">{groupValidation}</p>}
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1">Tổng Tuổi</label>
-                                    <input type="number" min="0" value={group.tongSoTuoi} 
-                                        onChange={(e) => updateGroup(group.id, { tongSoTuoi: parseInt(e.target.value) || 0 })}
-                                        className={inputClass} />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
-                                        Tuổi TB
-                                        <TooltipHelp content="Tuổi trung bình = Tổng tuổi / Số người. Phí bảo hiểm sẽ được tính dựa trên độ tuổi trung bình này." />
-                                    </label>
-                                    <div className="py-1.5 px-3 bg-gray-200 rounded text-sm font-bold text-gray-700 text-center">
-                                        {group.tuoiTrungBinh}
-                                    </div>
-                                </div>
-                            </>
+                              <input 
+                                  type="date"
+                                  value={group.ngaySinh || ''}
+                                  onChange={(e) => updateGroup(group.id, { ngaySinh: e.target.value })}
+                                  className={`${inputClass} ${
+                                      group.ngaySinh && !isValidAgeDate(group.ngaySinh).valid ? 'border-red-500 text-red-600 focus:ring-red-500 focus:border-red-500' : ''
+                                  }`}
+                              />
+                          )}
+                          {contractType === ContractType.CAN_HAN && group.ngaySinh && !isValidAgeDate(group.ngaySinh).valid && (
+                              <span className="text-[10px] text-red-500 mt-1 block">
+                                  {isValidAgeDate(group.ngaySinh).error}
+                              </span>
                           )}
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 pt-2 md:pt-0 md:border-l md:pl-4 border-gray-200">
-                          <button 
-                            onClick={() => setEditingId(editingId === group.id ? null : group.id)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${editingId === group.id ? 'bg-phuhung-blue text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                          >
-                             {editingId === group.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                             {editingId === group.id ? 'Đóng' : 'Chọn Quyền Lợi'}
-                          </button>
-                          
-                          {!isIndividual && (
-                              <button 
-                                onClick={() => removeGroup(group.id)}
-                                className="p-1.5 text-red-500 hover:bg-red-50 rounded"
-                                title="Xóa nhóm"
+                      {/* Gender (Individual) or Count (Group) */}
+                      <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1.5 mb-1.5">
+                              {contractType === ContractType.NHOM ? 'Số Lượng' : 'Giới Tính'}
+                          </label>
+                          {contractType === ContractType.NHOM ? (
+                              <input 
+                                  type="number"
+                                  min="1"
+                                  value={group.soNguoi}
+                                  onChange={(e) => updateGroup(group.id, { soNguoi: Number(e.target.value) })}
+                                  className={inputClass}
+                              />
+                          ) : (
+                              <select
+                                  value={group.gioiTinh}
+                                  onChange={(e) => updateGroup(group.id, { gioiTinh: e.target.value as Gender })}
+                                  className={inputClass}
                               >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                                  <option value={Gender.NAM}>Nam</option>
+                                  <option value={Gender.NU}>Nữ</option>
+                              </select>
                           )}
                       </div>
+
+                      {/* Group Count Specifics (If Group) */}
+                      {contractType === ContractType.NHOM && (
+                          <div>
+                               <label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1.5 mb-1.5">Nữ (Trong nhóm)</label>
+                               <input 
+                                  type="number"
+                                  min="0"
+                                  value={group.soNu}
+                                  onChange={(e) => updateGroup(group.id, { soNu: Number(e.target.value) })}
+                                  className={inputClass}
+                              />
+                          </div>
+                      )}
                   </div>
                   
-                  {/* Validation Error Banner for Group */}
-                  {!isIndividual && sizeValidation && (
-                      <div className="bg-red-50 px-4 py-2 flex items-center gap-2 border-t border-red-100">
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                          <span className="text-xs text-red-600 font-medium">{sizeValidation}</span>
-                      </div>
-                  )}
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-4 md:pt-0 pl-0 md:pl-4 border-t md:border-t-0 md:border-l border-gray-100 min-w-[140px] justify-end">
+                      <button 
+                          onClick={() => setEditingId(editingId === group.id ? null : group.id)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                              editingId === group.id 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                      >
+                          {editingId === group.id ? <ChevronDown className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                          {editingId === group.id ? 'Đóng' : 'Chọn QL'}
+                      </button>
 
-                  {/* Collapsible Benefit Form */}
-                  {editingId === group.id && (
-                      <div className="p-4 bg-white border-t border-gray-100">
-                          {renderEditBenefits(group)}
-                      </div>
-                  )}
+                      {contractType === ContractType.NHOM && (
+                          <button 
+                              onClick={() => removeGroup(group.id)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                              title="Xóa nhóm"
+                          >
+                              <Trash2 className="w-4 h-4" />
+                          </button>
+                      )}
+                  </div>
               </div>
-            );
-        })}
-      </div>
+
+              {/* Edit Panel */}
+              {editingId === group.id && renderEditBenefits(group)}
+          </div>
+       ))}
+
+       {/* Add Group Button */}
+       {contractType === ContractType.NHOM && (
+           <button 
+              onClick={addGroup}
+              className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-phuhung-blue hover:text-phuhung-blue hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 font-medium"
+           >
+              <PlusCircle className="w-5 h-5" />
+              Thêm Nhóm Mới
+           </button>
+       )}
     </div>
   );
 };

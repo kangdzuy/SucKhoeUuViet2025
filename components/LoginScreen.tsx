@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 
 interface Props {
   onLoginSuccess: (email: string) => void;
@@ -49,17 +49,19 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         {/* Header */}
-        <div className="bg-phuhung-blue p-8 text-center relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-full h-full bg-white/5 pointer-events-none"></div>
-           <div className="bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20">
-              <ShieldCheck className="w-10 h-10 text-white" />
+        <div className="bg-white p-8 pb-6 text-center border-b border-gray-100 relative overflow-hidden">
+           <div className="flex justify-center mb-4">
+             <img 
+                src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
+                alt="Phu Hung Assurance" 
+                className="h-20 object-contain"
+             />
            </div>
-           <h2 className="text-2xl font-bold text-white mb-1">Phu Hung Assurance</h2>
-           <p className="text-blue-100 text-sm">Hệ Thống Tính Phí Bảo Hiểm</p>
+           <h2 className="text-lg font-bold text-phuhung-blue uppercase tracking-wide">Hệ Thống Tính Phí Bảo Hiểm</h2>
         </div>
 
         {/* Form */}
-        <div className="p-8">
+        <div className="p-8 pt-6">
           {step === 'email' ? (
             <form onSubmit={handleSendOtp} className="space-y-5 animate-in slide-in-from-right-8 duration-300">
               <div className="text-center mb-6">
