@@ -7,7 +7,8 @@ import {
   BenefitHMethod,
   BenefitAMethod,
   BenefitASalaryOption,
-  Gender
+  Gender,
+  RenewalStatus
 } from '../types';
 import { 
   DURATION_FACTORS, 
@@ -70,14 +71,22 @@ export const calculatePremium = (
 
     tongSoNguoi += count;
 
-    let groupPhiGocOnePerson = 0;
-    let groupPhiThuanOnePerson = 0;
+    let groupTotalPhiGoc = 0; // Absolute total for the group
+    let groupTotalPhiThuan = 0;
+
     const details: Record<string, number> = {};
 
-    const addToTotal = (code: string, premium: number, premiumMin: number) => {
-        groupPhiGocOnePerson += premium;
-        groupPhiThuanOnePerson += premiumMin;
-        details[code] = (details[code] || 0) + (premium * count);
+    // Helper: Add to totals. specificCount allows calculating fee for a subset (e.g. only Females)
+    const addToTotal = (code: string, unitPremium: number, unitPremiumMin: number, specificCount?: number) => {
+        const applyCount = specificCount !== undefined ? specificCount : count;
+        
+        const totalLinePremium = unitPremium * applyCount;
+        const totalLineMin = unitPremiumMin * applyCount;
+
+        groupTotalPhiGoc += totalLinePremium;
+        groupTotalPhiThuan += totalLineMin;
+        
+        details[code] = (details[code] || 0) + totalLinePremium;
     }
 
     // --- PROCESS BENEFIT A (ACCIDENT) ---
@@ -129,11 +138,11 @@ export const calculatePremium = (
     }
 
     // --- OTHER BENEFITS ---
-    const processSimpleBenefit = (code: string, selected: boolean, si: number, method?: any, extra?: any) => {
+    const processSimpleBenefit = (code: string, selected: boolean, si: number, method?: any, extra?: any, specificCount?: number) => {
         if (selected && si > 0) {
             const rate = getBaseRate(code, avgAge, info.phamViDiaLy, si, extra);
             const rateMin = getMinPureRate(code, avgAge, info.phamViDiaLy, si, extra);
-            addToTotal(code, si * rate, si * rateMin);
+            addToTotal(code, si * rate, si * rateMin, specificCount);
         }
     };
 
@@ -148,13 +157,19 @@ export const calculatePremium = (
 
         // --- BENEFITS DEPENDENT ON C ---
         
-        // D (Maternity) - Extra checks for Female + Group
-        const isMaleIndividual = info.loaiHopDong === ContractType.CAN_HAN && group.gioiTinh === Gender.NAM;
-        const isSinglePerson = group.soNguoi <= 1;
-        const canBuyMaternity = !isMaleIndividual && !isSinglePerson;
+        // D (Maternity) - SPECIAL LOGIC FOR FEMALE ONLY
+        // Individual: Check Gender
+        // Group: Use group.soNu
+        
+        let maternityCount = 0;
+        if (info.loaiHopDong === ContractType.CAN_HAN) {
+            maternityCount = group.gioiTinh === Gender.NU ? 1 : 0;
+        } else {
+            maternityCount = group.soNu || 0;
+        }
 
-        if (canBuyMaternity) {
-            processSimpleBenefit('D', group.chonQuyenLoiD, group.stbhD);
+        if (maternityCount > 0) {
+            processSimpleBenefit('D', group.chonQuyenLoiD, group.stbhD, undefined, undefined, maternityCount);
         }
 
         // G (Overseas)
@@ -171,17 +186,12 @@ export const calculatePremium = (
     }
 
     // --- INDEPENDENT SUPPLEMENTARY BENEFITS (E, F) ---
-    // Previously dependent on C, now independent.
     
     // E (Outpatient)
     processSimpleBenefit('E', group.chonQuyenLoiE, group.stbhE);
 
     // F (Dental)
     processSimpleBenefit('F', group.chonQuyenLoiF, group.stbhF);
-
-    // Total for this group
-    const groupTotalPhiGoc = groupPhiGocOnePerson * count;
-    const groupTotalPhiThuan = groupPhiThuanOnePerson * count;
 
     tongPhiGoc += groupTotalPhiGoc;
     tongPhiThuanToiThieu += groupTotalPhiThuan;
@@ -206,28 +216,36 @@ export const calculatePremium = (
   const heSoDongChiTra = 1 - discountCopay;
   const phiSauDongChiTra = phiSauThoiHan * heSoDongChiTra;
 
-  // Layer 5: Group Size (Updated in constants to 40%)
-  let heSoGiamNhom = 1;
-  // Apply Discount regardless of renewal/new, as it's scale based
+  // Layer 5: Group Size
   const discountGroup = getGroupSizeDiscount(tongSoNguoi);
-  heSoGiamNhom = 1 - discountGroup;
+  const heSoGiamNhom = 1 - discountGroup;
   
   const phiSauNhom = phiSauDongChiTra * heSoGiamNhom;
 
-  // Layer 6: Loss Ratio (ONLY IF RENEWAL & GROUP)
+  // Layer 6: Loss Ratio
   let heSoTangLR = 1;
   let heSoGiamLR = 1;
   
-  if (info.loaiHopDong === ContractType.NHOM && info.isTaiTuc && info.tyLeBoiThuongNamTruoc > 0) {
+  // Logic: 
+  // - If RenewalStatus is CONTINUOUS: Apply both Increase and Decrease.
+  // - If RenewalStatus is NON_CONTINUOUS: Apply Increase only.
+  
+  // FIXED: Allow 0 to be processed so discount applies if RenewalStatus.CONTINUOUS
+  if (info.tyLeBoiThuongNamTruoc >= 0) {
       const lrFactors = getLRFactors(info.tyLeBoiThuongNamTruoc);
+      
+      // Loading applies in both cases
       heSoTangLR = 1 + lrFactors.increase;
-      heSoGiamLR = 1 - lrFactors.decrease;
+      
+      // Discount only applies if Continuous
+      if (info.renewalStatus === RenewalStatus.CONTINUOUS) {
+          heSoGiamLR = 1 - lrFactors.decrease;
+      }
   }
   
   const phiSauLR = phiSauNhom * heSoTangLR * heSoGiamLR;
 
   // Layer 7: Floor Check (Min Pure Premium)
-  // Ensure final premium is not lower than Pure Premium (Tỷ lệ phí thuần)
   const phiThuanSauHeSo = tongPhiThuanToiThieu * heSoThoiHan * heSoDongChiTra * heSoGiamNhom * heSoTangLR * heSoGiamLR;
 
   const phiCuoi = Math.max(phiSauLR, phiThuanSauHeSo);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GeneralInfo, ContractType, Geography, Duration, CoPay } from '../types';
+import { GeneralInfo, ContractType, Geography, Duration, CoPay, RenewalStatus } from '../types';
 import { Info, Building2, Globe, Calendar, Percent, Briefcase, RefreshCw } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
@@ -17,7 +17,8 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
   const inputClass = "w-full bg-[#F9FAFB] border-[#E0E4EC] rounded-[6px] shadow-sm focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue px-3 py-2.5 border text-[#111827] placeholder-[#9CA3AF] transition-all text-sm";
   const labelClass = "block text-sm font-medium text-phuhung-text mb-1.5 flex items-center";
 
-  const isGroup = info.loaiHopDong === ContractType.NHOM;
+  // Check if Continuous Renewal is selected
+  const isContinuous = info.renewalStatus === RenewalStatus.CONTINUOUS;
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-[8px] shadow-sm border border-phuhung-border">
@@ -44,7 +45,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-phuhung-blue" /> Loại Hợp Đồng</span>
-            <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho nhiều nhóm người, mỗi nhóm có thể có số người và tuổi trung bình khác nhau." />
+            <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho nhiều nhóm người." />
           </label>
           <div className="flex gap-4 mt-2">
              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#F9FAFB] transition-colors border border-transparent hover:border-[#E0E4EC]">
@@ -121,45 +122,63 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
           </select>
         </div>
         
-        {/* Renewal Switch */}
-        <div className="flex flex-col">
+        {/* Renewal Status - Mandatory Choice */}
+        <div>
             <label className={labelClass}>
-                <span className="flex items-center gap-1.5"><RefreshCw className="w-4 h-4 text-phuhung-blue" /> Loại Đơn</span>
-                <TooltipHelp content="Nếu là đơn tái tục, có thể áp dụng điều chỉnh phí dựa trên tỷ lệ bồi thường năm trước." />
+                <span className="flex items-center gap-1.5"><RefreshCw className="w-4 h-4 text-phuhung-blue" /> Tái Tục</span>
+                <TooltipHelp content="Chọn 'Có tái tục liên tục' để được áp dụng giảm phí nếu Loss Ratio tốt. Chọn 'Không' nếu là đơn mới hoặc gián đoạn (chỉ bị tăng phí nếu Loss Ratio xấu)." />
             </label>
-            <div className="flex items-center mt-2 bg-[#F9FAFB] border border-[#E0E4EC] rounded-[6px] p-2">
-                <span className={`text-sm mr-3 font-medium ${!info.isTaiTuc ? 'text-phuhung-blue' : 'text-gray-500'}`}>Mới</span>
-                <button
-                    onClick={() => handleChange('isTaiTuc', !info.isTaiTuc)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-phuhung-blue focus:ring-offset-2 ${
-                        info.isTaiTuc ? 'bg-phuhung-blue' : 'bg-gray-300'
-                    }`}
-                >
-                    <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            info.isTaiTuc ? 'translate-x-6' : 'translate-x-1'
-                        }`}
+            <div className="flex flex-col gap-2 mt-2">
+                 <label className={`flex items-center gap-2 cursor-pointer p-2 rounded transition-colors border ${info.renewalStatus === RenewalStatus.CONTINUOUS ? 'bg-blue-50 border-phuhung-blue' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
+                    <input 
+                      type="radio" 
+                      name="renewalStatus"
+                      value={RenewalStatus.CONTINUOUS}
+                      checked={info.renewalStatus === RenewalStatus.CONTINUOUS}
+                      onChange={(e) => handleChange('renewalStatus', e.target.value)}
+                      className="w-4 h-4 text-phuhung-blue focus:ring-phuhung-blue border-gray-300"
                     />
-                </button>
-                <span className={`text-sm ml-3 font-medium ${info.isTaiTuc ? 'text-phuhung-blue' : 'text-gray-500'}`}>Tái Tục</span>
+                    <span className="text-sm text-gray-700 font-medium">Có tái tục liên tục</span>
+                 </label>
+                 <label className={`flex items-center gap-2 cursor-pointer p-2 rounded transition-colors border ${info.renewalStatus === RenewalStatus.NON_CONTINUOUS ? 'bg-blue-50 border-phuhung-blue' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
+                    <input 
+                      type="radio" 
+                      name="renewalStatus"
+                      value={RenewalStatus.NON_CONTINUOUS}
+                      checked={info.renewalStatus === RenewalStatus.NON_CONTINUOUS}
+                      onChange={(e) => handleChange('renewalStatus', e.target.value)}
+                      className="w-4 h-4 text-phuhung-blue focus:ring-phuhung-blue border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700 font-medium">Không (Mới / Gián đoạn)</span>
+                 </label>
             </div>
         </div>
 
-        {/* Loss Ratio - Only show if Renewal & Group */}
+        {/* Loss Ratio - Always Available for Input */}
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-phuhung-blue" /> Tỷ Lệ Bồi Thường (%)</span>
-            <TooltipHelp content="Chỉ áp dụng cho đơn Tái Tục của nhóm. Dùng để tăng hoặc giảm phí dựa trên lịch sử bồi thường (Loss Ratio) năm trước." />
+            <TooltipHelp content="Nhập tỷ lệ bồi thường năm trước (nếu có). Nếu chọn 'Không tái tục liên tục', hệ thống chỉ áp dụng tăng phí (không giảm phí)." />
           </label>
-          <input
-            type="number"
-            min="0"
-            disabled={!isGroup || !info.isTaiTuc}
-            value={info.tyLeBoiThuongNamTruoc}
-            onChange={(e) => handleChange('tyLeBoiThuongNamTruoc', parseFloat(e.target.value) || 0)}
-            className={`${inputClass} ${(!isGroup || !info.isTaiTuc) ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : ''}`}
-            placeholder={!isGroup ? "Chỉ áp dụng cho nhóm" : !info.isTaiTuc ? "Chỉ áp dụng tái tục" : "0"}
-          />
+          <div className="relative">
+            <input
+                type="number"
+                min="0"
+                value={info.tyLeBoiThuongNamTruoc}
+                onChange={(e) => handleChange('tyLeBoiThuongNamTruoc', parseFloat(e.target.value) || 0)}
+                className={inputClass}
+                placeholder="0"
+            />
+            {info.tyLeBoiThuongNamTruoc > 0 && (
+                <div className="absolute top-full left-0 mt-1 text-[10px]">
+                    {!isContinuous ? (
+                        <span className="text-orange-600 font-medium">* Chỉ áp dụng Tăng phí (nếu có)</span>
+                    ) : (
+                        <span className="text-green-600 font-medium">* Áp dụng Tăng hoặc Giảm phí</span>
+                    )}
+                </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

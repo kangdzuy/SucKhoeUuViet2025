@@ -1,4 +1,4 @@
-import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption } from '../types';
+import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption, Gender } from '../types';
 import { DURATION_FACTORS, getBaseRate } from '../constants';
 
 // Helper to escape XML characters
@@ -91,7 +91,7 @@ export const exportToExcel = (
       Cell(info.phamViDiaLy),
       Cell(info.thoiHanBaoHiem),
       Cell(info.mucDongChiTra),
-      Cell(info.isTaiTuc ? info.tyLeBoiThuongNamTruoc : 0, 'sNumber')
+      Cell(info.tyLeBoiThuongNamTruoc, 'sNumber')
     ]);
   });
 
@@ -113,15 +113,17 @@ export const exportToExcel = (
     const age = g.tuoiTrungBinh;
     const geo = info.phamViDiaLy;
 
-    // Helper to generate benefit row
-    const addBenRow = (code: string, name: string, selected: boolean, si: number, dep: string, method?: string, extra?: any) => {
+    // Helper to generate benefit row with SPECIFIC COUNT logic
+    const addBenRow = (code: string, name: string, selected: boolean, si: number, dep: string, method?: string, extra?: any, specificCount?: number) => {
        const status = selected ? 'ON' : 'OFF';
        let rate = 0;
        let fee = 0;
        
        if (selected && si > 0) {
            rate = getBaseRate(code, age, geo, si, extra);
-           fee = si * rate * durationFactor;
+           // Calculate TOTAL fee for the group/individual for this benefit line
+           const countToUse = specificCount !== undefined ? specificCount : g.soNguoi;
+           fee = si * rate * durationFactor * countToUse;
        }
 
        // Format Code for display (A_MAIN -> A1)
@@ -164,8 +166,16 @@ export const exportToExcel = (
     // C
     addBenRow('C', 'Nội trú', g.chonQuyenLoiC, g.stbhC, '-');
 
-    // D
-    addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.stbhD, 'C');
+    // D - SPECIAL: Only calculate for Females
+    let maternityCount = 0;
+    if (info.loaiHopDong === ContractType.CAN_HAN) {
+        maternityCount = g.gioiTinh === Gender.NU ? 1 : 0;
+    } else {
+        maternityCount = g.soNu || 0;
+    }
+    // Only add row if count > 0 to avoid confusion, or add with 0 fee
+    // Here we add it normally but the fee calculation inside will use maternityCount
+    addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.stbhD, 'C', undefined, undefined, maternityCount);
 
     // E
     addBenRow('E', 'Ngoại trú', g.chonQuyenLoiE, g.stbhE, 'C');

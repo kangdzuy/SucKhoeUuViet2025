@@ -34,11 +34,6 @@ export const getGroupSizeDiscount = (size: number): number => {
 };
 
 // 4. Loss Ratio Adjustments (Mindmap: Tang/Giam theo ty le boi thuong nam truoc)
-// Rules based on common underwriting practices:
-// LR < 30% -> High Discount
-// 30 <= LR < 40 -> Mod Discount
-// ...
-// LR > 100 -> High Loading
 export const getLRFactors = (lr: number) => {
   let increase = 0; // Loading
   let decrease = 0; // Discount
@@ -65,6 +60,20 @@ export const getLRFactors = (lr: number) => {
 export const SI_BANDS_C = [40000000, 60000000, 100000000, 200000000, 400000000];
 export const SI_BANDS_E = [5000000, 10000000, 20000000];
 export const SI_BANDS_F = [2000000, 5000000, 10000000, 20000000];
+
+// Validation Ranges
+export const BENEFIT_LIMITS = {
+  A: { min: 10_000_000, max: 5_000_000_000 },
+  B: { min: 10_000_000, max: 5_000_000_000 },
+  C: { min: 20_000_000, max: 2_000_000_000 },
+  D: { min: 10_000_000, max: 200_000_000 },
+  E: { min: 2_000_000, max: 200_000_000 },
+  F: { min: 2_000_000, max: 100_000_000 },
+  G: { min: 20_000_000, max: 5_000_000_000 },
+  H: { min: 10_000_000, max: 500_000_000 },
+  I: { min: 2_000_000, max: 100_000_000 },
+  A_YTE: { min: 1_000_000, max: 1_000_000_000 },
+};
 
 // --- BENEFIT A DATA TABLES ---
 

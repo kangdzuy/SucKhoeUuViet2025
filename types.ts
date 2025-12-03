@@ -1,3 +1,4 @@
+
 // Enums
 export enum ContractType {
   CAN_HAN = 'CaNhan',
@@ -31,6 +32,11 @@ export enum Gender {
   NU = 'Nu'
 }
 
+export enum RenewalStatus {
+  CONTINUOUS = 'CoTaiTucLienTuc',
+  NON_CONTINUOUS = 'Khong'
+}
+
 // Config for Benefit H (Income Support)
 export enum BenefitHMethod {
   THEO_LUONG = 'TheoLuong',
@@ -56,8 +62,8 @@ export interface GeneralInfo {
   phamViDiaLy: Geography;
   thoiHanBaoHiem: Duration;
   mucDongChiTra: CoPay;
-  isTaiTuc: boolean; // True = Renewal, False = New Business
-  tyLeBoiThuongNamTruoc: number; // Percentage 0-100+ (Only applicable if isTaiTuc = true)
+  renewalStatus: RenewalStatus; // Updated from boolean isTaiTuc
+  tyLeBoiThuongNamTruoc: number; // Percentage 0-100+
 }
 
 export interface Benefits {

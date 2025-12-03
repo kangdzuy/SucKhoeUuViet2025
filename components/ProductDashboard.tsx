@@ -41,7 +41,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30">
         <div className="flex items-center gap-3">
             <img 
-               src="https://www.pacvn.vn/wp-content/uploads/2016/06/logo.png" 
+               src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
                alt="Phu Hung Assurance" 
                className="h-10 w-auto object-contain"
             />

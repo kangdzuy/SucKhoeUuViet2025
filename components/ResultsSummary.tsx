@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CalculationResult } from '../types';
-import { Calculator, TrendingUp, TrendingDown, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Props {
   result: CalculationResult;
+  onExport: () => void;
 }
 
 const formatMoney = (val: number) => 
@@ -14,156 +15,137 @@ const formatPercent = (factor: number) => {
   return `${p}%`;
 }
 
-const ResultsSummary: React.FC<Props> = ({ result }) => {
+const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
+  const [showDetails, setShowDetails] = useState(false);
+
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-[8px] shadow-sm border border-phuhung-border mt-8 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-phuhung-border">
-         <div className="bg-phuhung-blue p-2 rounded-lg text-white shadow-md shadow-blue-200">
-            <Calculator className="w-6 h-6" />
-         </div>
-         <h2 className="text-xl font-bold text-phuhung-blue">3. Kết Quả Tính Phí</h2>
+    <div className="bg-white rounded-xl shadow-lg border border-phuhung-blue/20 overflow-hidden animate-in fade-in slide-in-from-right-4 ring-1 ring-black/5">
+      
+      {/* Header */}
+      <div className="bg-phuhung-blue p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+             <Calculator className="w-5 h-5" />
+             <h2 className="font-bold text-lg">Kết Quả Tính Phí</h2>
+          </div>
+          <span className="text-xs bg-white/20 text-white px-2 py-1 rounded">
+             {result.tongSoNguoi} người
+          </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Left Column: Breakdown */}
-        <div className="space-y-4 text-sm">
-            <h3 className="text-base font-bold text-phuhung-text mb-2">Chi tiết tính toán</h3>
-            
-            <div className="flex justify-between items-center border-b border-dashed border-gray-200 pb-3">
-                <div>
-                   <span className="text-phuhung-textSec font-medium block">Tổng Phí Gốc (Base Premium)</span>
-                   <span className="text-xs text-gray-400">
-                       ({result.tongSoNhom} nhóm, {result.tongSoNguoi} người)
-                   </span>
-                </div>
-                <span className="font-mono text-lg font-bold text-phuhung-text">{formatMoney(result.tongPhiGoc)}</span>
+      {/* Main Price Card */}
+      <div className="p-6 bg-gradient-to-b from-blue-50 to-white text-center border-b border-gray-100">
+          <p className="text-phuhung-textSec text-xs font-semibold uppercase tracking-wider mb-2">Tổng Phí Cuối Cùng</p>
+          <div className="text-4xl font-extrabold text-phuhung-orange tracking-tight drop-shadow-sm mb-1">
+              {formatMoney(result.phiCuoi).replace('₫', '')} <span className="text-lg text-gray-400 font-medium">₫</span>
+          </div>
+          
+          {/* Validity Badge */}
+          <div className="flex justify-center mt-3">
+            {result.phiCuoi <= 0 ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                    <AlertCircle className="w-3 h-3" /> Phí không hợp lệ
+                </span>
+            ) : result.isFloorApplied ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                     <AlertCircle className="w-3 h-3" /> Đã áp dụng sàn phí thuần
+                </span>
+            ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <CheckCircle2 className="w-3 h-3" /> Phí hợp lệ
+                </span>
+            )}
+          </div>
+      </div>
+
+      {/* Breakdown Details - Vertical Stack */}
+      <div className="p-5 space-y-4 text-sm bg-white">
+            <div className="flex justify-between items-center pb-3 border-b border-dashed border-gray-200">
+                <span className="text-gray-600">Tổng Phí Gốc</span>
+                <span className="font-semibold text-gray-900">{formatMoney(result.tongPhiGoc)}</span>
             </div>
             
-            <div className="space-y-3 pl-2 border-l-2 border-gray-100">
-                <div className="flex justify-between items-center text-phuhung-textSec">
-                    <span>Hệ số thời hạn (ngắn hạn)</span>
-                    <span className="font-mono text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold">x{result.heSoThoiHan}</span>
+            <div className="space-y-2.5">
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Hệ số thời hạn</span>
+                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">x{result.heSoThoiHan}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-phuhung-textSec">
-                    <span>Giảm phí đồng chi trả (Co-pay)</span>
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Giảm đồng chi trả (Co-pay)</span>
                     {result.heSoDongChiTra < 1 ? (
-                        <div className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded">
-                            <TrendingDown className="w-3 h-3" />
-                            <span className="font-mono">{formatPercent(result.heSoDongChiTra)}</span>
-                        </div>
-                    ) : <span className="text-gray-400 font-mono">0%</span>}
+                        <span className="text-green-600 font-bold">-{formatPercent(result.heSoDongChiTra)}</span>
+                    ) : <span className="text-gray-300">0%</span>}
                 </div>
 
-                <div className="flex justify-between items-center text-phuhung-textSec">
-                    <span>Giảm phí quy mô nhóm ({result.tongSoNguoi} người)</span>
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Giảm quy mô nhóm</span>
                     {result.heSoGiamNhom < 1 ? (
-                         <div className="flex items-center gap-1 text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded">
-                            <TrendingDown className="w-3 h-3" />
-                            <span className="font-mono">{formatPercent(result.heSoGiamNhom)}</span>
-                        </div>
-                    ) : <span className="text-gray-400 font-mono">0%</span>}
+                        <span className="text-green-600 font-bold">-{formatPercent(result.heSoGiamNhom)}</span>
+                    ) : <span className="text-gray-300">0%</span>}
                 </div>
 
-                <div className="flex justify-between items-center text-phuhung-textSec">
-                    <span>Điều chỉnh theo Loss Ratio</span>
-                    <div className="flex items-center gap-2">
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Điều chỉnh Loss Ratio</span>
+                    <div className="flex items-center gap-1">
                         {result.heSoTangLR > 1 && (
-                            <span className="flex items-center gap-1 text-red-600 text-xs font-bold bg-red-50 px-2 py-0.5 rounded border border-red-100">
-                            <TrendingUp className="w-3 h-3" /> Tăng {formatPercent(result.heSoTangLR)}
-                            </span>
+                            <span className="text-red-600 font-bold">+{formatPercent(result.heSoTangLR)}</span>
                         )}
                         {result.heSoGiamLR < 1 && (
-                            <span className="flex items-center gap-1 text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                            <TrendingDown className="w-3 h-3" /> Giảm {formatPercent(result.heSoGiamLR)}
-                            </span>
+                            <span className="text-green-600 font-bold">-{formatPercent(result.heSoGiamLR)}</span>
                         )}
-                        {result.heSoTangLR === 1 && result.heSoGiamLR === 1 && <span className="text-gray-400 text-xs font-mono">--</span>}
+                        {result.heSoTangLR === 1 && result.heSoGiamLR === 1 && <span className="text-gray-300">--</span>}
                     </div>
                 </div>
             </div>
              
-             <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                 <span className="text-phuhung-text font-semibold">Phí thương mại sơ bộ</span>
-                 <span className="font-mono text-phuhung-text font-bold">{formatMoney(result.phiSauLR)}</span>
+             <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                 <span className="text-gray-500 text-xs">Sàn phí thuần (Min)</span>
+                 <span className="font-mono text-gray-500 text-xs">{formatMoney(result.phiThuanSauHeSo)}</span>
             </div>
-        </div>
-
-        {/* Right Column: Final Calculation & Floor Check */}
-        <div className="bg-[#F8F9FB] p-6 rounded-lg flex flex-col justify-center border border-gray-200 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-phuhung-orange/5 rounded-bl-full"></div>
-            
-            <div className="mb-8 relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                     <p className="text-phuhung-textSec text-sm font-medium uppercase tracking-wider">Tổng Phí Cuối Cùng</p>
-                     <span className="bg-phuhung-orange text-white text-[10px] px-1.5 py-0.5 rounded font-bold">VND</span>
-                </div>
-                <span className="text-4xl sm:text-5xl font-extrabold text-phuhung-orange tracking-tight drop-shadow-sm">
-                    {formatMoney(result.phiCuoi).replace('₫', '')}
-                </span>
-            </div>
-            
-            <div className="border-t border-gray-200 pt-4 space-y-3 relative z-10">
-                 <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Sàn phí thuần (Minimum Pure Premium)</span>
-                    <span className="font-mono text-sm text-gray-600 font-medium">{formatMoney(result.phiThuanSauHeSo)}</span>
-                </div>
-
-                {result.phiCuoi <= 0 ? (
-                    <div className="flex items-center gap-2 bg-red-50 p-3 rounded-md border border-red-200">
-                        <AlertCircle className="w-5 h-5 text-red-600" />
-                        <span className="text-sm text-red-800 font-medium">
-                            Phí không hợp lệ.
-                        </span>
-                    </div>
-                ) : result.isFloorApplied ? (
-                    <div className="flex items-start gap-3 bg-orange-50 p-3 rounded-md border border-orange-200">
-                        <AlertCircle className="w-5 h-5 text-phuhung-orange mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="text-sm text-gray-800 font-bold">Đã áp dụng sàn phí thuần</p>
-                            <p className="text-xs text-gray-600 mt-0.5">Phí thương mại tính toán thấp hơn phí thuần tối thiểu quy định.</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-2 bg-green-50 p-3 rounded-md border border-green-200">
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        <span className="text-sm text-green-800 font-medium">
-                            Phí hợp lệ (Cao hơn sàn phí thuần).
-                        </span>
-                    </div>
-                )}
-            </div>
-        </div>
       </div>
-      
-      {/* Detailed Table Link/View */}
-      {result.tongSoNguoi > 0 && (
-         <div className="mt-8 pt-8 border-t border-gray-100">
-             <h3 className="text-sm font-bold text-phuhung-text mb-4 uppercase tracking-wide">Chi tiết các nhóm</h3>
-             <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-                 <table className="w-full text-left text-xs text-gray-600">
-                     <thead className="bg-gray-50 text-gray-700 font-semibold uppercase">
-                         <tr>
-                             <th className="p-3 border-b border-gray-200">Tên Nhóm / Cá Nhân</th>
-                             <th className="p-3 border-b border-gray-200 text-center">Số Người</th>
-                             <th className="p-3 border-b border-gray-200 text-center">Tuổi TB</th>
-                             <th className="p-3 border-b border-gray-200 text-right">Tổng phí gốc nhóm</th>
-                             <th className="p-3 border-b border-gray-200 text-right">Phí thuần Min nhóm</th>
+
+      {/* Action Area */}
+      <div className="p-4 bg-gray-50 border-t border-gray-200 space-y-3">
+          <button 
+            onClick={onExport}
+            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow-md shadow-green-200 transition-all transform active:scale-[0.98]"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+            Xuất Báo Giá Excel
+          </button>
+
+          {result.tongSoNguoi > 0 && (
+             <button 
+                onClick={() => setShowDetails(!showDetails)}
+                className="w-full flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-phuhung-blue py-2"
+             >
+                {showDetails ? 'Thu gọn chi tiết' : 'Xem chi tiết từng nhóm'}
+                {showDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+             </button>
+          )}
+      </div>
+
+      {/* Expandable Details Table */}
+      {showDetails && result.tongSoNguoi > 0 && (
+         <div className="bg-white border-t border-gray-200 max-h-60 overflow-y-auto">
+             <table className="w-full text-left text-[10px] text-gray-600">
+                 <thead className="bg-gray-50 text-gray-700 font-semibold uppercase sticky top-0">
+                     <tr>
+                         <th className="p-2 border-b">Tên</th>
+                         <th className="p-2 border-b text-right">Phí Gốc</th>
+                         <th className="p-2 border-b text-right">Phí Min</th>
+                     </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                     {result.detailByGroup.map(g => (
+                         <tr key={g.id}>
+                             <td className="p-2 truncate max-w-[100px]" title={g.tenNhom}>{g.tenNhom || '(Trống)'}</td>
+                             <td className="p-2 text-right font-mono text-phuhung-blue">{formatMoney(g.tongPhiGoc)}</td>
+                             <td className="p-2 text-right font-mono text-gray-400">{formatMoney(g.tongPhiThuanToiThieu)}</td>
                          </tr>
-                     </thead>
-                     <tbody className="bg-white">
-                         {result.detailByGroup.map(g => (
-                             <tr key={g.id} className="border-b border-gray-100 last:border-0 hover:bg-blue-50/20 transition-colors">
-                                 <td className="p-3 font-medium text-phuhung-text">{g.tenNhom || '(Chưa đặt tên)'}</td>
-                                 <td className="p-3 text-center">{g.soNguoi}</td>
-                                 <td className="p-3 text-center">{g.tuoiTrungBinh}</td>
-                                 <td className="p-3 text-right font-mono text-phuhung-blue">{formatMoney(g.tongPhiGoc)}</td>
-                                 <td className="p-3 text-right font-mono text-gray-400">{formatMoney(g.tongPhiThuanToiThieu)}</td>
-                             </tr>
-                         ))}
-                     </tbody>
-                 </table>
-             </div>
+                     ))}
+                 </tbody>
+             </table>
          </div>
       )}
     </div>

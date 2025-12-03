@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import GeneralInfoForm from './GeneralInfoForm';
 import InsuredList from './InsuredList';
 import ResultsSummary from './ResultsSummary';
-import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult } from '../types';
+import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult, RenewalStatus } from '../types';
 import { calculatePremium } from '../services/calculationService';
 import { exportToExcel } from '../services/excelExport';
-import { FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
@@ -19,7 +19,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
     phamViDiaLy: Geography.VIETNAM,
     thoiHanBaoHiem: Duration.TREN_9_THANG,
     mucDongChiTra: CoPay.MUC_0,
-    isTaiTuc: false,
+    renewalStatus: RenewalStatus.NON_CONTINUOUS,
     tyLeBoiThuongNamTruoc: 0
   });
 
@@ -42,8 +42,8 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
   return (
     <div className="min-h-screen bg-phuhung-bg pb-20 font-sans text-phuhung-text">
       {/* Header */}
-      <header className="bg-phuhung-blue text-white shadow-md sticky top-0 z-40">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
+      <header className="bg-phuhung-blue text-white shadow-md sticky top-0 z-50">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-[72px] flex items-center justify-between">
           <div className="flex items-center gap-4">
              <button 
                 onClick={onBack}
@@ -59,7 +59,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
                   className="h-full w-auto object-contain"
                />
             </div>
-            <div className="flex flex-col border-l border-blue-400/30 pl-4 h-10 justify-center">
+            <div className="hidden md:flex flex-col border-l border-blue-400/30 pl-4 h-10 justify-center">
               <span className="font-bold text-lg leading-none">Ưu Việt 2025</span>
               <span className="text-[11px] text-blue-100 font-light opacity-80 uppercase tracking-wide">Công cụ tính phí</span>
             </div>
@@ -72,38 +72,39 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
         
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-          <div>
-             <h1 className="text-2xl font-bold text-phuhung-text">Bảo Hiểm Sức Khỏe Ưu Việt</h1>
-             <p className="text-phuhung-textSec mt-1 text-sm">Nhập thông tin để tính phí tự động.</p>
-          </div>
-          
-          <button 
-            onClick={handleExportExcel}
-            className="flex items-center justify-center gap-2 text-sm bg-white border border-phuhung-border text-phuhung-blue hover:bg-blue-50 hover:border-phuhung-blue px-5 py-2.5 rounded-md transition-all shadow-sm font-medium cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-green-600" />
-            <span>Xuất Excel</span>
-          </button>
+        <div className="mb-6">
+           <h1 className="text-2xl font-bold text-phuhung-text">Bảo Hiểm Sức Khỏe Ưu Việt</h1>
+           <p className="text-phuhung-textSec mt-1 text-sm">Nhập thông tin chi tiết bên dưới, phí bảo hiểm sẽ được tính toán tự động ở cột bên phải.</p>
         </div>
         
-        <section>
-          <GeneralInfoForm info={generalInfo} onChange={setGeneralInfo} />
-        </section>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+            {/* Left Column: Inputs (Take 8/12 space on large screens) */}
+            <div className="xl:col-span-8 space-y-8">
+                <section>
+                    <GeneralInfoForm info={generalInfo} onChange={setGeneralInfo} />
+                </section>
 
-        <section>
-          <InsuredList 
-            groups={groups} 
-            contractType={generalInfo.loaiHopDong}
-            onChange={setGroups} 
-          />
-        </section>
+                <section>
+                    <InsuredList 
+                        groups={groups} 
+                        contractType={generalInfo.loaiHopDong}
+                        onChange={setGroups} 
+                    />
+                </section>
+            </div>
 
-        <section>
-          {result && <ResultsSummary result={result} />}
-        </section>
+            {/* Right Column: Sticky Results (Take 4/12 space) */}
+            <div className="xl:col-span-4 sticky top-[88px] z-30">
+                {result && (
+                    <ResultsSummary 
+                        result={result} 
+                        onExport={handleExportExcel}
+                    />
+                )}
+            </div>
+        </div>
       </main>
     </div>
   );

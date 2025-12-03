@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InsuranceGroup, Gender, ContractType, BenefitHMethod, BenefitAMethod, BenefitASalaryOption } from '../types';
 import { isValidAgeDate } from '../services/calculationService';
-import { SI_BANDS_C, SI_BANDS_E, SI_BANDS_F } from '../constants';
+import { BENEFIT_LIMITS } from '../constants';
 import { Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, Check } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
@@ -12,6 +12,11 @@ interface Props {
 }
 
 const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
+const formatShortMoney = (val: number) => {
+    if (val >= 1000000000) return (val / 1000000000) + ' tỷ';
+    if (val >= 1000000) return (val / 1000000) + ' tr';
+    return formatCurrency(val);
+}
 
 const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,10 +50,9 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     chonQuyenLoiI: false, stbhI: 20000000,
   };
 
-  // Ensure there is at least 1 group for Individual mode
+  // Ensure there is at least 1 group for Individual mode on init
   useEffect(() => {
-    if (contractType === ContractType.CAN_HAN) {
-      if (groups.length === 0) {
+    if (contractType === ContractType.CAN_HAN && groups.length === 0) {
         // Create initial individual
         const initialInd: InsuranceGroup = {
             id: crypto.randomUUID(),
@@ -64,22 +68,21 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
         };
         onChange([initialInd]);
         setEditingId(initialInd.id); // Open edit immediately
-      } else if (groups.length > 1) {
-        // Force only 1 group if Individual
-        onChange([groups[0]]);
-      }
     }
   }, [contractType]);
 
   const addGroup = () => {
+    const isInd = contractType === ContractType.CAN_HAN;
     const newGroup: InsuranceGroup = {
       id: crypto.randomUUID(),
       tenNhom: '',
-      soNguoi: 0, // Must be entered by user
-      soNam: 0,
+      soNguoi: isInd ? 1 : 0, 
+      soNam: isInd ? 1 : 0,
       soNu: 0,
       tongSoTuoi: 0,
       tuoiTrungBinh: 0, 
+      ngaySinh: isInd ? '' : undefined,
+      gioiTinh: isInd ? Gender.NAM : undefined,
       ...defaultBenefits
     };
     onChange([...groups, newGroup]);
@@ -147,6 +150,19 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
 
   const inputClass = "w-full text-sm bg-[#F9FAFB] border-[#E0E4EC] text-[#111827] placeholder-[#9CA3AF] rounded-[4px] shadow-sm focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue px-2 py-1.5 border transition-all disabled:bg-gray-100 disabled:text-gray-400";
   const checkboxClass = "w-4 h-4 text-phuhung-blue border-gray-300 rounded focus:ring-phuhung-blue cursor-pointer";
+
+  // Helper for Validation Message
+  const ValidationMsg = ({ val, min, max }: { val: number, min: number, max: number }) => {
+    if (val < min || val > max) {
+        return (
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-red-600 font-medium">
+                <AlertCircle className="w-3 h-3" />
+                <span>Hạn mức từ {formatShortMoney(min)} đến {formatShortMoney(max)}</span>
+            </div>
+        );
+    }
+    return null;
+  };
 
   // Common wrapper for a benefit card
   const BenefitCard = ({ 
@@ -219,19 +235,16 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     // Rule for Maternity (D):
     // 1. Requires C (PDF Page 17)
     // 2. Female Only (PDF Page 26 - "Chỉ dành cho Nữ")
-    // 3. Quantity > 1 (PDF Page 7 - "Số lượng > 1, cho phép chọn mục Thai sản")
     
     const isMaleIndividual = isIndividual && group.gioiTinh === Gender.NAM;
     const isGroupNoFemale = !isIndividual && group.soNu === 0;
-    const isNotEnoughPeople = group.soNguoi <= 1;
 
-    const disableMaternity = !hasC || isMaleIndividual || isGroupNoFemale || isNotEnoughPeople;
+    const disableMaternity = !hasC || isMaleIndividual || isGroupNoFemale;
     
     let maternityDependencyText = "Cần chọn Quyền lợi C";
     if (hasC) {
         if (isMaleIndividual) maternityDependencyText = "Chỉ dành cho Nữ";
         else if (isGroupNoFemale) maternityDependencyText = "Nhóm không có Nữ";
-        else if (isNotEnoughPeople) maternityDependencyText = "Số lượng phải > 1 người";
     }
 
     const hasNoMainBenefit = !group.chonQuyenLoiA && !group.chonQuyenLoiB && !group.chonQuyenLoiC;
@@ -321,13 +334,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                 </div>
                             ) : (
                                 <div>
-                                    <label className="text-xs text-gray-500 block mb-1">Số tiền bảo hiểm (10tr - 5 tỷ)</label>
+                                    <label className="text-xs text-gray-500 block mb-1">Số tiền bảo hiểm ({formatShortMoney(BENEFIT_LIMITS.A.min)} - {formatShortMoney(BENEFIT_LIMITS.A.max)})</label>
                                     <input type="number" value={group.stbhA} 
                                            onChange={(e) => updateGroup(group.id, { stbhA: Number(e.target.value) })}
                                            className={inputClass} />
-                                    {(group.stbhA < 10000000 || group.stbhA > 5000000000) && (
-                                        <p className="text-[10px] text-red-500 mt-1">STBH phải từ 10tr đến 5 tỷ VND</p>
-                                    )}
+                                    <ValidationMsg val={group.stbhA} min={BENEFIT_LIMITS.A.min} max={BENEFIT_LIMITS.A.max} />
                                 </div>
                             )}
                         </div>
@@ -410,6 +421,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                              <input type="number" value={group.stbhA_YTe} 
                                                     onChange={(e) => updateGroup(group.id, { stbhA_YTe: Number(e.target.value) })}
                                                     className={inputClass} />
+                                             <ValidationMsg val={group.stbhA_YTe} min={BENEFIT_LIMITS.A_YTE.min} max={BENEFIT_LIMITS.A_YTE.max} />
                                          </div>
                                      )}
                                  </div>
@@ -430,9 +442,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                            onChange={(e) => updateGroup(group.id, { stbhB: Number(e.target.value) })}
                            className={inputClass} placeholder="Số tiền BH" />
                     <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
-                    {group.chonQuyenLoiB && (group.stbhB < 10000000 || group.stbhB > 5000000000) && (
-                        <p className="text-[10px] text-red-500 mt-1">STBH phải từ 10tr đến 5 tỷ VND</p>
-                    )}
+                    <ValidationMsg val={group.stbhB} min={BENEFIT_LIMITS.B.min} max={BENEFIT_LIMITS.B.max} />
                  </BenefitCard>
 
                  {/* C - Noi Tru (Base for many) */}
@@ -443,12 +453,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     tooltip="Chi trả chi phí nằm viện, phẫu thuật do ốm đau, bệnh tật. Thường là cơ sở cho Thai sản và Trợ cấp."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiC: v })}
                  >
-                    <select value={group.stbhC} 
+                    <input type="number" value={group.stbhC} 
                             onChange={(e) => updateGroup(group.id, { stbhC: Number(e.target.value) })}
-                            className={inputClass}>
-                        {SI_BANDS_C.map(v => <option key={v} value={v}>{formatCurrency(v)}</option>)}
-                    </select>
+                            className={inputClass} />
                     <p className="text-[10px] text-gray-400 mt-1 text-right">Hạn mức / năm</p>
+                    <ValidationMsg val={group.stbhC} min={BENEFIT_LIMITS.C.min} max={BENEFIT_LIMITS.C.max} />
                  </BenefitCard>
              </div>
           </div>
@@ -462,18 +471,25 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  
-                 {/* D - Thai San (Requires C + Female + >1 Person) */}
+                 {/* D - Thai San (Requires C + Female) */}
                  <BenefitCard 
                     code="D" title="Thai Sản" 
                     description="Biến chứng thai sản, sinh thường/mổ. (Yêu cầu tham gia C)"
                     selected={group.chonQuyenLoiD}
                     disabled={disableMaternity}
                     dependencyText={maternityDependencyText}
-                    tooltip="Chi trả chi phí sinh nở và biến chứng thai sản. Điều kiện: Phải tham gia quyền lợi C, là Nữ, và nhóm phải có trên 1 người."
+                    tooltip="Chi trả chi phí sinh nở và biến chứng thai sản. Điều kiện: Phải tham gia quyền lợi C, là Nữ."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiD: v })}
                  >
                      <input type="number" value={group.stbhD} onChange={(e) => updateGroup(group.id, { stbhD: Number(e.target.value) })} className={inputClass} />
                      <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
+                     <ValidationMsg val={group.stbhD} min={BENEFIT_LIMITS.D.min} max={BENEFIT_LIMITS.D.max} />
+                     {contractType === ContractType.NHOM && group.chonQuyenLoiD && (
+                        <div className="mt-1 text-[11px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 flex items-start gap-1">
+                            <Info className="w-3 h-3 mt-0.5" />
+                            <span>Phí chỉ tính cho <b>{group.soNu}</b> Nữ trong nhóm.</span>
+                        </div>
+                     )}
                  </BenefitCard>
 
                  {/* E - Ngoai Tru (Independent) */}
@@ -484,10 +500,9 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     tooltip="Chi trả chi phí khám chữa bệnh không nằm viện (thuốc kê đơn, xét nghiệm, X-quang, vật lý trị liệu)."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiE: v })}
                  >
-                    <select value={group.stbhE} onChange={(e) => updateGroup(group.id, { stbhE: Number(e.target.value) })} className={inputClass}>
-                        {SI_BANDS_E.map(v => <option key={v} value={v}>{formatCurrency(v)}</option>)}
-                    </select>
+                    <input type="number" value={group.stbhE} onChange={(e) => updateGroup(group.id, { stbhE: Number(e.target.value) })} className={inputClass} />
                     <p className="text-[10px] text-gray-400 mt-1 text-right">Hạn mức / năm</p>
+                    <ValidationMsg val={group.stbhE} min={BENEFIT_LIMITS.E.min} max={BENEFIT_LIMITS.E.max} />
                  </BenefitCard>
 
                  {/* F - Nha Khoa (Independent) */}
@@ -498,10 +513,9 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     tooltip="Chi trả chi phí khám răng, trám răng, nhổ răng, lấy cao răng và điều trị tủy."
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiF: v })}
                  >
-                    <select value={group.stbhF} onChange={(e) => updateGroup(group.id, { stbhF: Number(e.target.value) })} className={inputClass}>
-                        {SI_BANDS_F.map(v => <option key={v} value={v}>{formatCurrency(v)}</option>)}
-                    </select>
+                    <input type="number" value={group.stbhF} onChange={(e) => updateGroup(group.id, { stbhF: Number(e.target.value) })} className={inputClass} />
                     <p className="text-[10px] text-gray-400 mt-1 text-right">Hạn mức / năm</p>
+                    <ValidationMsg val={group.stbhF} min={BENEFIT_LIMITS.F.min} max={BENEFIT_LIMITS.F.max} />
                  </BenefitCard>
 
                  {/* G - Nuoc Ngoai (Requires C) */}
@@ -518,6 +532,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                            onChange={(e) => updateGroup(group.id, { stbhG: Number(e.target.value) })}
                            className={inputClass} placeholder="Hạn mức mở rộng" />
                      <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
+                     <ValidationMsg val={group.stbhG} min={BENEFIT_LIMITS.G.min} max={BENEFIT_LIMITS.G.max} />
                  </BenefitCard>
 
                  {/* H - Income Support (Requires C) */}
@@ -595,6 +610,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                     <input type="number" value={group.stbhH} 
                                         onChange={(e) => updateGroup(group.id, { stbhH: Number(e.target.value) })}
                                         className={inputClass} />
+                                    <ValidationMsg val={group.stbhH} min={BENEFIT_LIMITS.H.min} max={BENEFIT_LIMITS.H.max} />
                                 </div>
                             )}
                         </div>
@@ -613,6 +629,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  >
                     <input type="number" value={group.stbhI} onChange={(e) => updateGroup(group.id, { stbhI: Number(e.target.value) })} className={inputClass} />
                     <p className="text-[10px] text-gray-400 mt-1 text-right">VNĐ</p>
+                    <ValidationMsg val={group.stbhI} min={BENEFIT_LIMITS.I.min} max={BENEFIT_LIMITS.I.max} />
                  </BenefitCard>
              </div>
           </div>
@@ -746,15 +763,13 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                           {editingId === group.id ? 'Đóng' : 'Chọn QL'}
                       </button>
 
-                      {contractType === ContractType.NHOM && (
-                          <button 
-                              onClick={() => removeGroup(group.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                              title="Xóa nhóm"
-                          >
-                              <Trash2 className="w-4 h-4" />
-                          </button>
-                      )}
+                      <button 
+                          onClick={() => removeGroup(group.id)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                          title="Xóa"
+                      >
+                          <Trash2 className="w-4 h-4" />
+                      </button>
                   </div>
               </div>
 
@@ -763,16 +778,14 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
           </div>
        ))}
 
-       {/* Add Group Button */}
-       {contractType === ContractType.NHOM && (
-           <button 
-              onClick={addGroup}
-              className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-phuhung-blue hover:text-phuhung-blue hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 font-medium"
-           >
-              <PlusCircle className="w-5 h-5" />
-              Thêm Nhóm Mới
-           </button>
-       )}
+       {/* Add Group/Person Button */}
+       <button 
+          onClick={addGroup}
+          className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-phuhung-blue hover:text-phuhung-blue hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 font-medium"
+       >
+          <PlusCircle className="w-5 h-5" />
+          {contractType === ContractType.NHOM ? 'Thêm Nhóm Mới' : 'Thêm Người Mới'}
+       </button>
     </div>
   );
 };
