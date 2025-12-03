@@ -1,4 +1,28 @@
-import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType } from '../types';
+import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption } from '../types';
+import { DURATION_FACTORS, getBaseRate } from '../constants';
+
+// Helper to escape XML characters
+const esc = (str: string | number | undefined) => {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+};
+
+// Helper to create a cell
+const Cell = (value: string | number, styleID?: string, type?: 'String' | 'Number') => {
+  const cellType = type || (typeof value === 'number' ? 'Number' : 'String');
+  const styleAttr = styleID ? ` ss:StyleID="${styleID}"` : '';
+  return `<Cell${styleAttr}><Data ss:Type="${cellType}">${esc(value)}</Data></Cell>`;
+};
+
+// Helper to create a row
+const Row = (cells: string[]) => {
+  return `<Row>${cells.join('')}</Row>`;
+};
 
 export const exportToExcel = (
   info: GeneralInfo, 
@@ -6,239 +30,273 @@ export const exportToExcel = (
   result: CalculationResult
 ) => {
   const fileName = `Bao_Gia_${info.tenKhachHang ? info.tenKhachHang.replace(/[^a-z0-9]/gi, '_') : 'Khach_Hang'}_${new Date().toISOString().slice(0,10)}.xls`;
+  const createdDate = new Date().toISOString();
+  
+  // Calculate common factors
+  const durationFactor = DURATION_FACTORS[info.thoiHanBaoHiem] || 1;
 
-  const fmt = (val: number | undefined | null) => {
-    if (val === undefined || val === null || val === 0) return '-';
-    return new Intl.NumberFormat('vi-VN').format(Math.round(val));
-  };
+  // --- SHEET 1: SUMMARY ---
+  let sheet1Rows = '';
+  // Headers
+  sheet1Rows += Row([
+    Cell('Tên báo giá', 'sHeader'),
+    Cell('Ngày tạo', 'sHeader'),
+    Cell('Sản phẩm', 'sHeader'),
+    Cell('Cá nhân / Nhóm', 'sHeader'),
+    Cell('Số người', 'sHeader'),
+    Cell('Phạm vi', 'sHeader'),
+    Cell('Thời hạn', 'sHeader'),
+    Cell('Tổng phí trước giảm giá', 'sHeader'),
+    Cell('Tổng tăng/giảm (LR/Size)', 'sHeader'),
+    Cell('Phí cuối', 'sHeader'),
+    Cell('Phí thuần (Floor)', 'sHeader')
+  ]);
 
-  // Helper to check if a benefit is selected to show meaningful data or empty
-  const getCellData = (
-    isSelected: boolean, 
-    si: number, 
-    premium: number
-  ) => {
-    if (!isSelected) return { si: '', prem: '' };
-    return { si: fmt(si), prem: fmt(premium) };
-  };
+  // Data Row
+  const diffFactor = (result.heSoGiamNhom * result.heSoTangLR * result.heSoGiamLR * result.heSoDongChiTra) - 1; // Simplified view of impact
+  
+  sheet1Rows += Row([
+    Cell(info.tenKhachHang),
+    Cell(new Date().toLocaleDateString('vi-VN')),
+    Cell('HEA 2025 - Ưu Việt'),
+    Cell(info.loaiHopDong === ContractType.NHOM ? 'Nhóm' : 'Cá nhân'),
+    Cell(result.tongSoNguoi, 'sNumber'),
+    Cell(info.phamViDiaLy),
+    Cell(info.thoiHanBaoHiem),
+    Cell(result.phiSauThoiHan, 'sCurrency'), // Base * Duration
+    Cell(diffFactor, 'sPercent'),
+    Cell(result.phiCuoi, 'sCurrencyBold'),
+    Cell(result.phiThuanSauHeSo, 'sCurrency')
+  ]);
 
-  const html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
-      <!--[if gte mso 9]>
-      <xml>
-        <x:ExcelWorkbook>
-          <x:ExcelWorksheets>
-            <x:ExcelWorksheet>
-              <x:Name>Bảng Phí Chi Tiết</x:Name>
-              <x:WorksheetOptions>
-                <x:DisplayGridlines/>
-                <x:FrozenNoSplit/>
-                <x:SplitHorizontal>6</x:SplitHorizontal>
-                <x:TopRowBottomPane>6</x:TopRowBottomPane>
-              </x:WorksheetOptions>
-            </x:ExcelWorksheet>
-          </x:ExcelWorksheets>
-        </x:ExcelWorkbook>
-      </xml>
-      <![endif]-->
-      <style>
-        body { font-family: 'Times New Roman', Arial, sans-serif; font-size: 11pt; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 0.5pt solid #999; padding: 5px; vertical-align: middle; }
-        
-        /* Headers */
-        .header-title { font-size: 18pt; font-weight: bold; border: none; text-align: center; color: #00529B; padding: 20px; }
-        .section-header { background-color: #00529B; color: white; font-weight: bold; text-align: center; white-space: nowrap; }
-        .sub-header { background-color: #f0f4f8; color: #333; font-weight: bold; text-align: center; font-size: 10pt; }
-        
-        /* Data Cells */
-        .group-name { font-weight: bold; text-align: left; background-color: #fafafa; }
-        .center { text-align: center; }
-        .number { text-align: right; mso-number-format:"\#\,\#\#0"; }
-        
-        /* Summary Section */
-        .summary-label { font-weight: bold; background-color: #e6e6e6; }
-        .total-row { background-color: #FFFFCC; font-weight: bold; border-top: 2pt double #333; }
-        .final-prem { background-color: #F58220; color: white; font-weight: bold; font-size: 14pt; }
-        
-        /* Benefit Column Colors */
-        .bg-main { background-color: #e3f2fd; }
-        .bg-sub { background-color: #fff3e0; }
-      </style>
-    </head>
-    <body>
-      <table>
-        <!-- Title -->
-        <tr>
-            <td colspan="23" class="header-title">BẢNG TÍNH PHÍ BẢO HIỂM SỨC KHỎE ƯU VIỆT 2025</td>
-        </tr>
-        <tr><td colspan="23" style="border:none;"></td></tr>
-        
-        <!-- General Info -->
-        <tr>
-            <td colspan="3" class="summary-label">Tên Khách Hàng:</td>
-            <td colspan="8" style="font-weight: bold;">${info.tenKhachHang}</td>
-            <td colspan="3" class="summary-label">Ngày báo giá:</td>
-            <td colspan="9">${new Date().toLocaleDateString('vi-VN')}</td>
-        </tr>
-        <tr>
-            <td colspan="3" class="summary-label">Loại Hợp Đồng:</td>
-            <td colspan="2">${info.loaiHopDong === ContractType.NHOM ? 'Nhóm' : 'Cá nhân'}</td>
-            <td colspan="2" class="summary-label">Phạm Vi:</td>
-            <td colspan="4">${info.phamViDiaLy}</td>
-            <td colspan="2" class="summary-label">Thời Hạn:</td>
-            <td colspan="10">${info.thoiHanBaoHiem}</td>
-        </tr>
-        <tr><td colspan="23" style="border:none;"></td></tr>
+  // --- SHEET 2: INPUT ---
+  let sheet2Rows = '';
+  sheet2Rows += Row([
+    Cell('Họ tên / Tên nhóm', 'sHeader'),
+    Cell('Tuổi TB', 'sHeader'),
+    Cell('Giới tính (Đại diện)', 'sHeader'),
+    Cell('Số lượng', 'sHeader'),
+    Cell('Phạm vi', 'sHeader'),
+    Cell('Thời hạn', 'sHeader'),
+    Cell('Đồng chi trả', 'sHeader'),
+    Cell('Loss Ratio (Năm trước)', 'sHeader')
+  ]);
 
-        <!-- Table Header -->
-        <thead>
-          <tr>
-              <th rowspan="2" class="section-header">STT</th>
-              <th rowspan="2" class="section-header" style="width: 200px;">Tên Nhóm / Cá Nhân</th>
-              <th rowspan="2" class="section-header">Số Người</th>
-              <th rowspan="2" class="section-header">Tuổi TB</th>
-              
-              <!-- Main Benefits -->
-              <th colspan="2" class="section-header" style="background-color: #1565C0;">A. Tai Nạn</th>
-              <th colspan="2" class="section-header" style="background-color: #1565C0;">B. Tử Vong (Bệnh)</th>
-              <th colspan="2" class="section-header" style="background-color: #1565C0;">C. Nội Trú</th>
-              
-              <!-- Sub Benefits -->
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">D. Thai Sản</th>
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">E. Ngoại Trú</th>
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">F. Nha Khoa</th>
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">G. Nước Ngoài</th>
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">H. Trợ Cấp TN</th>
-              <th colspan="2" class="section-header" style="background-color: #EF6C00;">I. Ngộ Độc</th>
-              
-              <th rowspan="2" class="section-header" style="background-color: #333;">Tổng Phí Gốc</th>
-          </tr>
-          <tr>
-              <!-- Sub Headers for SI & Premium -->
-              <th class="sub-header bg-main">STBH</th> <th class="sub-header bg-main">Phí</th>
-              <th class="sub-header bg-main">STBH</th> <th class="sub-header bg-main">Phí</th>
-              <th class="sub-header bg-main">Hạn Mức</th> <th class="sub-header bg-main">Phí</th>
-              
-              <th class="sub-header bg-sub">STBH</th> <th class="sub-header bg-sub">Phí</th>
-              <th class="sub-header bg-sub">Hạn Mức</th> <th class="sub-header bg-sub">Phí</th>
-              <th class="sub-header bg-sub">Hạn Mức</th> <th class="sub-header bg-sub">Phí</th>
-              <th class="sub-header bg-sub">Hạn Mức</th> <th class="sub-header bg-sub">Phí</th>
-              <th class="sub-header bg-sub">STBH</th> <th class="sub-header bg-sub">Phí</th>
-              <th class="sub-header bg-sub">STBH</th> <th class="sub-header bg-sub">Phí</th>
-          </tr>
-        </thead>
-        
-        <tbody>
-        ${groups.map((g, index) => {
-            // Find calculated details
-            const rGroup = result.detailByGroup.find(r => r.id === g.id);
-            const d = rGroup?.details || {};
+  groups.forEach(g => {
+    sheet2Rows += Row([
+      Cell(g.tenNhom),
+      Cell(g.tuoiTrungBinh, 'sNumber'),
+      Cell(g.gioiTinh || 'N/A'),
+      Cell(g.soNguoi, 'sNumber'),
+      Cell(info.phamViDiaLy),
+      Cell(info.thoiHanBaoHiem),
+      Cell(info.mucDongChiTra),
+      Cell(info.isTaiTuc ? info.tyLeBoiThuongNamTruoc : 0, 'sNumber')
+    ]);
+  });
 
-            // Calculate aggregated premiums for A (Main + Subs)
-            const premA = (d['A_Chinh'] || 0) + (d['A_TroCap'] || 0) + (d['A_YTe'] || 0);
-            
-            // Prepare Data Cells
-            const dataA = getCellData(g.chonQuyenLoiA, g.stbhA, premA);
-            const dataB = getCellData(g.chonQuyenLoiB, g.stbhB, d['B'] || 0);
-            const dataC = getCellData(g.chonQuyenLoiC, g.stbhC, d['C'] || 0);
-            const dataD = getCellData(g.chonQuyenLoiD, g.stbhD, d['D'] || 0);
-            const dataE = getCellData(g.chonQuyenLoiE, g.stbhE, d['E'] || 0);
-            const dataF = getCellData(g.chonQuyenLoiF, g.stbhF, d['F'] || 0);
-            const dataG = getCellData(g.chonQuyenLoiG, g.stbhG, d['G'] || 0); // G usually follows C limit in UI logic if complex, but here simplistic
-            const dataH = getCellData(g.chonQuyenLoiH, g.stbhH, d['H'] || 0);
-            const dataI = getCellData(g.chonQuyenLoiI, g.stbhI, d['I'] || 0);
+  // --- SHEET 3: BENEFIT DETAIL ---
+  let sheet3Rows = '';
+  sheet3Rows += Row([
+    Cell('Tên Nhóm', 'sHeader'),
+    Cell('Mã QL', 'sHeader'),
+    Cell('Tên quyền lợi', 'sHeader'),
+    Cell('STBH (Hạn mức)', 'sHeader'),
+    Cell('Tỷ lệ phí (%)', 'sHeader'),
+    Cell('Hệ số thời hạn', 'sHeader'),
+    Cell('Phí quyền lợi con (Trước CK)', 'sHeader'),
+    Cell('Phụ thuộc', 'sHeader'),
+    Cell('Trạng thái', 'sHeader')
+  ]);
 
-            return `
-            <tr>
-                <td class="center">${index + 1}</td>
-                <td class="group-name">${g.tenNhom}</td>
-                <td class="center">${g.soNguoi}</td>
-                <td class="center">${g.tuoiTrungBinh}</td>
-                
-                <td class="number bg-main">${dataA.si}</td> <td class="number bg-main">${dataA.prem}</td>
-                <td class="number bg-main">${dataB.si}</td> <td class="number bg-main">${dataB.prem}</td>
-                <td class="number bg-main">${dataC.si}</td> <td class="number bg-main">${dataC.prem}</td>
-                
-                <td class="number bg-sub">${dataD.si}</td> <td class="number bg-sub">${dataD.prem}</td>
-                <td class="number bg-sub">${dataE.si}</td> <td class="number bg-sub">${dataE.prem}</td>
-                <td class="number bg-sub">${dataF.si}</td> <td class="number bg-sub">${dataF.prem}</td>
-                <td class="number bg-sub">${dataC.si /* G uses C limit typically, displaying C limit for ref or - */ }</td> <td class="number bg-sub">${dataG.prem}</td>
-                <td class="number bg-sub">${dataH.si}</td> <td class="number bg-sub">${dataH.prem}</td>
-                <td class="number bg-sub">${dataI.si}</td> <td class="number bg-sub">${dataI.prem}</td>
-                
-                <td class="number" style="font-weight:bold;">${fmt(rGroup?.tongPhiGoc || 0)}</td>
-            </tr>
-            `;
-        }).join('')}
-        
-        <!-- Total Row -->
-        <tr class="total-row">
-            <td colspan="2" class="center">TỔNG CỘNG</td>
-            <td class="center">${result.tongSoNguoi}</td>
-            <td></td>
-            <!-- Empty cells for detail columns, just span or leave blank -->
-            <td colspan="18"></td>
-            <td class="number">${fmt(result.tongPhiGoc)}</td>
-        </tr>
-        </tbody>
-      </table>
+  groups.forEach(g => {
+    const age = g.tuoiTrungBinh;
+    const geo = info.phamViDiaLy;
 
-      <br/>
+    // Helper to generate benefit row
+    const addBenRow = (code: string, name: string, selected: boolean, si: number, dep: string, method?: string, extra?: any) => {
+       const status = selected ? 'ON' : 'OFF';
+       let rate = 0;
+       let fee = 0;
+       
+       if (selected && si > 0) {
+           rate = getBaseRate(code, age, geo, si, extra);
+           fee = si * rate * durationFactor;
+       }
 
-      <!-- Summary Calculation Section (Small Table below) -->
-      <table style="width: 50%; margin-top: 20px;">
-        <tr>
-            <td colspan="2" class="section-header" style="text-align: left; padding-left: 10px;">TỔNG HỢP PHÍ CUỐI CÙNG</td>
-        </tr>
-        <tr>
-            <td class="summary-label">1. Tổng Phí Gốc</td>
-            <td class="number">${fmt(result.tongPhiGoc)}</td>
-        </tr>
-        <tr>
-            <td class="summary-label">2. Hệ số thời hạn (${info.thoiHanBaoHiem})</td>
-            <td class="number">x ${result.heSoThoiHan}</td>
-        </tr>
-        <tr>
-            <td class="summary-label">3. Giảm phí đồng chi trả (Co-pay: ${info.mucDongChiTra})</td>
-            <td class="number">x ${result.heSoDongChiTra}</td>
-        </tr>
-        <tr>
-            <td class="summary-label">4. Giảm phí quy mô nhóm</td>
-            <td class="number">x ${result.heSoGiamNhom}</td>
-        </tr>
-        ${result.heSoTangLR !== 1 || result.heSoGiamLR !== 1 ? `
-        <tr>
-            <td class="summary-label">5. Điều chỉnh Loss Ratio (Tái tục)</td>
-            <td class="number">x ${(result.heSoTangLR * result.heSoGiamLR).toFixed(2)}</td>
-        </tr>` : ''}
-        
-        <tr class="final-row">
-            <td>PHÍ THANH TOÁN</td>
-            <td class="number">${fmt(result.phiCuoi)}</td>
-        </tr>
-        ${result.isFloorApplied ? `
-        <tr>
-            <td colspan="2" style="color: red; font-size: 9pt; font-style: italic;">
-                * Phí đã được điều chỉnh lên mức Phí Thuần Tối Thiểu (Floor Rate) theo quy định.
-            </td>
-        </tr>` : ''}
-      </table>
+       // Format Code for display (A_MAIN -> A1)
+       let displayCode = code;
+       if (code === 'A_MAIN') displayCode = 'A1';
+       if (code === 'A_ALLOWANCE') displayCode = 'A2';
+       if (code === 'A_MEDICAL') displayCode = 'A3';
 
-      <div style="margin-top: 20px; font-size: 10pt; color: #666;">
-        <p><i>Ghi chú:</i></p>
-        <ul style="margin: 0; padding-left: 20px;">
-            <li>Đơn vị tính: VNĐ</li>
-            <li>Bảng phí này chỉ có giá trị tham khảo. Phí thực tế có thể thay đổi tùy thuộc vào quy tắc thẩm định cuối cùng.</li>
-        </ul>
-      </div>
-    </body>
-    </html>
-  `;
+       sheet3Rows += Row([
+         Cell(g.tenNhom),
+         Cell(displayCode),
+         Cell(name),
+         Cell(si, 'sNumber'),
+         Cell(rate, 'sPercent'),
+         Cell(durationFactor, 'sNumber'),
+         Cell(fee, 'sCurrency'),
+         Cell(dep),
+         Cell(status)
+       ]);
+    };
 
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    // A Main
+    let siA = g.stbhA;
+    if (g.methodA === BenefitAMethod.THEO_LUONG) siA = (g.luongA || 0) * (g.soThangLuongA || 0);
+    addBenRow('A_MAIN', 'Tai nạn (Chính)', g.chonQuyenLoiA, siA, '-');
+
+    // A Sub 1
+    let siA1 = 0;
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_3_5) siA1 = (g.luongA || 0) * 5;
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) siA1 = (g.luongA || 0) * 9;
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) siA1 = (g.luongA || 0) * 12;
+    addBenRow('A_ALLOWANCE', 'Trợ cấp lương (Tai nạn)', g.subA_TroCap, siA1, 'A', undefined, { option: g.subA_TroCap_Option });
+
+    // A Sub 2
+    addBenRow('A_MEDICAL', 'Y tế (Tai nạn)', g.subA_YTe, g.stbhA_YTe, 'A');
+
+    // B
+    addBenRow('B', 'Tử vong (Bệnh)', g.chonQuyenLoiB, g.stbhB, '-');
+
+    // C
+    addBenRow('C', 'Nội trú', g.chonQuyenLoiC, g.stbhC, '-');
+
+    // D
+    addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.stbhD, 'C');
+
+    // E
+    addBenRow('E', 'Ngoại trú', g.chonQuyenLoiE, g.stbhE, 'C');
+
+    // F
+    addBenRow('F', 'Nha khoa', g.chonQuyenLoiF, g.stbhF, 'C');
+
+    // G
+    addBenRow('G', 'Nước ngoài', g.chonQuyenLoiG, g.stbhG, 'C');
+
+    // H
+    let siH = g.stbhH;
+    if (g.methodH === BenefitHMethod.THEO_LUONG) siH = (g.luongTrungBinh || 0) * (g.soThangLuong || 0);
+    addBenRow('H', 'Trợ cấp thu nhập', g.chonQuyenLoiH, siH, 'C');
+
+    // I
+    addBenRow('I', 'Ngộ độc', g.chonQuyenLoiI, g.stbhI, 'A');
+  });
+
+
+  // --- SHEET 4: GROUP PRICING ---
+  let sheet4Rows = '';
+  sheet4Rows += Row([
+    Cell('Tên nhóm', 'sHeader'),
+    Cell('Số người', 'sHeader'),
+    Cell('Tuổi trung bình', 'sHeader'),
+    Cell('Tổng phí gốc (Nhóm)', 'sHeader'),
+    Cell('Điều kiện giảm giá áp dụng', 'sHeader'),
+    Cell('Phí cuối nhóm (Sau CK & LR)', 'sHeader')
+  ]);
+
+  result.detailByGroup.forEach(g => {
+    // Calculate final group fee approximately based on total factors
+    const groupFinal = g.tongPhiGoc * durationFactor * result.heSoGiamNhom * result.heSoDongChiTra * result.heSoTangLR * result.heSoGiamLR;
+    
+    // Determine Discount text
+    let discountText = [];
+    if (result.heSoGiamNhom < 1) discountText.push(`Size: -${Math.round((1-result.heSoGiamNhom)*100)}%`);
+    if (result.heSoDongChiTra < 1) discountText.push(`Copay: -${Math.round((1-result.heSoDongChiTra)*100)}%`);
+    if (result.heSoTangLR > 1) discountText.push(`LR: +${Math.round((result.heSoTangLR-1)*100)}%`);
+    if (result.heSoGiamLR < 1) discountText.push(`LR: -${Math.round((1-result.heSoGiamLR)*100)}%`);
+
+    sheet4Rows += Row([
+      Cell(g.tenNhom),
+      Cell(g.soNguoi, 'sNumber'),
+      Cell(g.tuoiTrungBinh, 'sNumber'),
+      Cell(g.tongPhiGoc, 'sCurrency'),
+      Cell(discountText.join(', ') || 'None'),
+      Cell(groupFinal, 'sCurrencyBold')
+    ]);
+  });
+
+
+  // --- SHEET 5: RATE SOURCE ---
+  let sheet5Rows = '';
+  sheet5Rows += Row([Cell('File Rate Source', 'sHeader'), Cell('Phiên bản', 'sHeader'), Cell('Ngày load', 'sHeader'), Cell('Ghi chú', 'sHeader')]);
+  sheet5Rows += Row([Cell('Rate_Table_A.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
+  sheet5Rows += Row([Cell('Rate_Table_BC.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
+  sheet5Rows += Row([Cell('Rate_Table_Supp.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
+
+
+  // --- ASSEMBLE XML ---
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Arial" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="sHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>
+   </Borders>
+   <Font ss:FontName="Arial" x:Family="Swiss" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#00529B" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="sNumber">
+   <NumberFormat ss:Format="#,##0"/>
+  </Style>
+  <Style ss:ID="sCurrency">
+   <NumberFormat ss:Format="#,##0"/>
+  </Style>
+  <Style ss:ID="sCurrencyBold">
+   <Font ss:FontName="Arial" x:Family="Swiss" ss:Size="11" ss:Color="#000000" ss:Bold="1"/>
+   <NumberFormat ss:Format="#,##0"/>
+  </Style>
+  <Style ss:ID="sPercent">
+   <NumberFormat ss:Format="0.00%"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Summary">
+  <Table>
+   ${sheet1Rows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Input">
+  <Table>
+   ${sheet2Rows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Benefit Detail">
+  <Table>
+   ${sheet3Rows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Group Pricing">
+  <Table>
+   ${sheet4Rows}
+  </Table>
+ </Worksheet>
+ <Worksheet ss:Name="Rate Source">
+  <Table>
+   ${sheet5Rows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement('a');
