@@ -1,3 +1,4 @@
+
 import { 
   GeneralInfo, 
   InsuranceGroup, 
@@ -57,7 +58,7 @@ export const calculatePremium = (
   let tongSoNguoi = 0;
   const detailByGroup: GroupResult[] = [];
 
-  // Iterate Groups
+  // Iterate Groups to calculate Base Premiums
   groups.forEach(group => {
     // Determine effective count and age
     const count = Math.max(1, group.soNguoi);
@@ -105,7 +106,6 @@ export const calculatePremium = (
 
         // 2. Sub Benefit: Allowance (Tro Cap Luong) - DEPENDS ON A
         if (group.subA_TroCap && group.subA_TroCap_Option) {
-            // Use user selected months, fallback to max of option if not set
             let months = group.soThangLuongTroCap;
             if (!months || months <= 0) {
                  if (group.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) months = 9;
@@ -158,9 +158,6 @@ export const calculatePremium = (
         // --- BENEFITS DEPENDENT ON C ---
         
         // D (Maternity) - SPECIAL LOGIC FOR FEMALE ONLY
-        // Individual: Check Gender
-        // Group: Use group.soNu
-        
         let maternityCount = 0;
         if (info.loaiHopDong === ContractType.CAN_HAN) {
             maternityCount = group.gioiTinh === Gender.NU ? 1 : 0;
@@ -180,76 +177,92 @@ export const calculatePremium = (
         if (group.methodH === BenefitHMethod.THEO_LUONG) {
             if (group.luongTrungBinh > 0 && group.soThangLuong > 0) {
                 siH = group.luongTrungBinh * group.soThangLuong;
+            } else {
+                siH = 0;
             }
         }
         processSimpleBenefit('H', group.chonQuyenLoiH, siH);
+
+        // E (Outpatient)
+        processSimpleBenefit('E', group.chonQuyenLoiE, group.stbhE);
+
+        // F (Dental)
+        processSimpleBenefit('F', group.chonQuyenLoiF, group.stbhF);
     }
 
-    // --- INDEPENDENT SUPPLEMENTARY BENEFITS (E, F) ---
-    
-    // E (Outpatient)
-    processSimpleBenefit('E', group.chonQuyenLoiE, group.stbhE);
-
-    // F (Dental)
-    processSimpleBenefit('F', group.chonQuyenLoiF, group.stbhF);
-
+    // Accumulate Results
     tongPhiGoc += groupTotalPhiGoc;
     tongPhiThuanToiThieu += groupTotalPhiThuan;
-
+    
     detailByGroup.push({
-      id: group.id,
-      tenNhom: group.tenNhom,
-      soNguoi: count,
-      tuoiTrungBinh: avgAge,
-      tongPhiGoc: groupTotalPhiGoc,
-      tongPhiThuanToiThieu: groupTotalPhiThuan,
-      details
+        id: group.id,
+        tenNhom: group.tenNhom,
+        soNguoi: count,
+        tuoiTrungBinh: avgAge,
+        tongPhiGoc: groupTotalPhiGoc,
+        tongPhiThuanToiThieu: groupTotalPhiThuan,
+        details
     });
   });
 
-  // Layer 3: Duration
-  const heSoThoiHan = DURATION_FACTORS[info.thoiHanBaoHiem] || 1;
-  const phiSauThoiHan = tongPhiGoc * heSoThoiHan;
-
-  // Layer 4: Co-pay
-  const discountCopay = COPAY_DISCOUNT[info.mucDongChiTra] || 0;
-  const heSoDongChiTra = 1 - discountCopay;
-  const phiSauDongChiTra = phiSauThoiHan * heSoDongChiTra;
-
-  // Layer 5: Group Size
-  const discountGroup = getGroupSizeDiscount(tongSoNguoi);
-  const heSoGiamNhom = 1 - discountGroup;
+  // --- ADJUSTMENT FACTORS CALCULATION (ADDITIVE MODEL) ---
   
-  const phiSauNhom = phiSauDongChiTra * heSoGiamNhom;
+  // 1. Co-pay Discount (Negative %)
+  const percentCopay = -(COPAY_DISCOUNT[info.mucDongChiTra] || 0);
 
-  // Layer 6: Loss Ratio
-  let heSoTangLR = 1;
-  let heSoGiamLR = 1;
-  
-  // Logic: 
-  // - If RenewalStatus is CONTINUOUS: Apply both Increase and Decrease.
-  // - If RenewalStatus is NON_CONTINUOUS: Apply Increase only.
-  
-  // FIXED: Allow 0 to be processed so discount applies if RenewalStatus.CONTINUOUS
-  if (info.tyLeBoiThuongNamTruoc >= 0) {
+  // 2. Group Size Discount (Negative %)
+  const percentGroup = -(getGroupSizeDiscount(tongSoNguoi) || 0);
+
+  // 3. Loss Ratio Adjustment (Positive or Negative %)
+  let percentLR = 0;
+  // LR only applies to GROUP contracts. 
+  // Allow 0 (Perfect history) to be valid. Check contract type explicitly.
+  if (info.loaiHopDong === ContractType.NHOM && info.tyLeBoiThuongNamTruoc >= 0) {
       const lrFactors = getLRFactors(info.tyLeBoiThuongNamTruoc);
       
-      // Loading applies in both cases
-      heSoTangLR = 1 + lrFactors.increase;
+      // Increase Logic
+      if (lrFactors.increase > 0) {
+          percentLR += lrFactors.increase;
+      }
       
-      // Discount only applies if Continuous
-      if (info.renewalStatus === RenewalStatus.CONTINUOUS) {
-          heSoGiamLR = 1 - lrFactors.decrease;
+      // Decrease Logic (Only if Continuous Renewal)
+      if (lrFactors.decrease > 0) {
+          if (info.renewalStatus === RenewalStatus.CONTINUOUS) {
+              percentLR -= lrFactors.decrease;
+          }
       }
   }
+
+  // TOTAL ADJUSTMENT PERCENTAGE
+  // Formula: [1 + %Increase + %Decrease]
+  const totalAdjPercent = percentCopay + percentGroup + percentLR;
+  const adjFactor = 1 + totalAdjPercent;
+
+  // 4. Duration Factor
+  const heSoThoiHan = DURATION_FACTORS[info.thoiHanBaoHiem] || 1;
+
+  // --- FINAL CALCULATION ---
   
-  const phiSauLR = phiSauNhom * heSoTangLR * heSoGiamLR;
+  // A. Calculated Premium using Formula
+  // Premium = Base * (1 + Sum%) * Duration
+  const calculatedPremium = tongPhiGoc * adjFactor * heSoThoiHan;
+  
+  // B. Minimum Pure Premium Check (Floor)
+  // Floor = PurePremium * Duration (Floor is usually not subject to commercial discounts like Group/Copay)
+  // However, to be safe, we ensure we cover the risk.
+  const floorPremium = tongPhiThuanToiThieu * heSoThoiHan;
 
-  // Layer 7: Floor Check (Min Pure Premium)
-  const phiThuanSauHeSo = tongPhiThuanToiThieu * heSoThoiHan * heSoDongChiTra * heSoGiamNhom * heSoTangLR * heSoGiamLR;
+  let phiCuoi = calculatedPremium;
+  let isFloorApplied = false;
 
-  const phiCuoi = Math.max(phiSauLR, phiThuanSauHeSo);
-  const isFloorApplied = phiCuoi > phiSauLR; 
+  if (phiCuoi < floorPremium) {
+      phiCuoi = floorPremium;
+      isFloorApplied = true;
+  }
+
+  // Rounding
+  phiCuoi = Math.round(phiCuoi);
+  const phiThuanSauHeSo = Math.round(floorPremium);
 
   return {
     detailByGroup,
@@ -258,16 +271,13 @@ export const calculatePremium = (
     tongPhiGoc,
     tongPhiThuanToiThieu,
     heSoThoiHan,
-    phiSauThoiHan,
-    heSoDongChiTra,
-    phiSauDongChiTra,
-    heSoGiamNhom,
-    phiSauNhom,
-    heSoTangLR,
-    heSoGiamLR,
-    phiSauLR,
-    phiThuanSauHeSo,
+    percentCopay,
+    percentGroup,
+    percentLR,
+    totalAdjPercent,
+    adjFactor,
     phiCuoi,
+    phiThuanSauHeSo,
     isFloorApplied
   };
 };

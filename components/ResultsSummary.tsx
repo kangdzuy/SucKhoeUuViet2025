@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CalculationResult } from '../types';
-import { Calculator, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calculator, AlertCircle, CheckCircle2, FileSpreadsheet, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Props {
   result: CalculationResult;
@@ -10,8 +10,10 @@ interface Props {
 const formatMoney = (val: number) => 
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
-const formatPercent = (factor: number) => {
-  const p = Math.round((Math.abs(1 - factor)) * 100);
+// Helper to format percentage with sign (e.g., +10%, -5%)
+const formatSignedPercent = (val: number) => {
+  const p = Math.round(val * 100);
+  if (p > 0) return `+${p}%`;
   return `${p}%`;
 }
 
@@ -46,7 +48,7 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
                     <AlertCircle className="w-3 h-3" /> Phí không hợp lệ
                 </span>
             ) : result.isFloorApplied ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700" title={`Phí tính toán: ${formatMoney(result.tongPhiGoc * result.adjFactor * result.heSoThoiHan)}`}>
                      <AlertCircle className="w-3 h-3" /> Đã áp dụng sàn phí thuần
                 </span>
             ) : (
@@ -65,36 +67,40 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
             </div>
             
             <div className="space-y-2.5">
+                {/* Additive Factors */}
                 <div className="flex justify-between items-center text-gray-500 text-xs">
-                    <span>Hệ số thời hạn</span>
+                    <span>Đồng chi trả (Co-pay)</span>
+                    <span className={result.percentCopay !== 0 ? "text-gray-800 font-medium" : "text-gray-300"}>
+                        {formatSignedPercent(result.percentCopay)}
+                    </span>
+                </div>
+
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Quy mô nhóm</span>
+                    <span className={result.percentGroup !== 0 ? "text-gray-800 font-medium" : "text-gray-300"}>
+                        {formatSignedPercent(result.percentGroup)}
+                    </span>
+                </div>
+
+                <div className="flex justify-between items-center text-gray-500 text-xs">
+                    <span>Loss Ratio (Tăng/Giảm)</span>
+                    <span className={result.percentLR !== 0 ? (result.percentLR > 0 ? "text-red-600 font-bold" : "text-green-600 font-bold") : "text-gray-300"}>
+                        {formatSignedPercent(result.percentLR)}
+                    </span>
+                </div>
+
+                {/* Total Adjustment Line */}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <span className="text-phuhung-blue font-semibold text-xs">Tổng % Tăng/Giảm</span>
+                    <span className={`font-bold text-xs ${result.totalAdjPercent > 0 ? 'text-red-600' : result.totalAdjPercent < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                        {formatSignedPercent(result.totalAdjPercent)}
+                    </span>
+                </div>
+
+                {/* Duration Factor */}
+                <div className="flex justify-between items-center text-gray-500 text-xs pt-1">
+                    <span>Tỷ lệ ngắn hạn</span>
                     <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">x{result.heSoThoiHan}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-gray-500 text-xs">
-                    <span>Giảm đồng chi trả (Co-pay)</span>
-                    {result.heSoDongChiTra < 1 ? (
-                        <span className="text-green-600 font-bold">-{formatPercent(result.heSoDongChiTra)}</span>
-                    ) : <span className="text-gray-300">0%</span>}
-                </div>
-
-                <div className="flex justify-between items-center text-gray-500 text-xs">
-                    <span>Giảm quy mô nhóm</span>
-                    {result.heSoGiamNhom < 1 ? (
-                        <span className="text-green-600 font-bold">-{formatPercent(result.heSoGiamNhom)}</span>
-                    ) : <span className="text-gray-300">0%</span>}
-                </div>
-
-                <div className="flex justify-between items-center text-gray-500 text-xs">
-                    <span>Điều chỉnh Loss Ratio</span>
-                    <div className="flex items-center gap-1">
-                        {result.heSoTangLR > 1 && (
-                            <span className="text-red-600 font-bold">+{formatPercent(result.heSoTangLR)}</span>
-                        )}
-                        {result.heSoGiamLR < 1 && (
-                            <span className="text-green-600 font-bold">-{formatPercent(result.heSoGiamLR)}</span>
-                        )}
-                        {result.heSoTangLR === 1 && result.heSoGiamLR === 1 && <span className="text-gray-300">--</span>}
-                    </div>
                 </div>
             </div>
              

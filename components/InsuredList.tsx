@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { InsuranceGroup, Gender, ContractType, BenefitHMethod, BenefitAMethod, BenefitASalaryOption } from '../types';
 import { isValidAgeDate } from '../services/calculationService';
 import { BENEFIT_LIMITS } from '../constants';
-import { Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, Check } from 'lucide-react';
+import { 
+  Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, Check,
+  ShieldAlert, HeartPulse, BedDouble, Baby, Stethoscope, Smile, Plane, Wallet, Utensils
+} from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
 interface Props {
@@ -169,9 +172,10 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     onToggle,
     dependencyText,
     colSpan = "",
-    tooltip
+    tooltip,
+    icon: Icon
   }: any) => (
-    <div className={`relative flex flex-col p-4 rounded-lg border transition-all duration-200 ${disabled ? 'bg-gray-50 border-gray-100 opacity-60' : selected ? 'bg-white border-phuhung-blue shadow-md shadow-blue-50 ring-1 ring-phuhung-blue/20' : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'} ${colSpan}`}>
+    <div className={`relative flex flex-col p-4 rounded-xl border transition-all duration-200 ${disabled ? 'bg-gray-50 border-gray-100 opacity-60 shadow-sm' : selected ? 'bg-white border-phuhung-blue shadow-lg shadow-blue-50 ring-1 ring-phuhung-blue/20' : 'bg-white border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300'} ${colSpan}`}>
         <div className="flex items-start gap-3 mb-3">
             <div className="pt-0.5">
                 <input 
@@ -185,7 +189,8 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
             <div className="flex-1">
                 <div className="flex justify-between items-start">
                     <label className={`text-sm font-bold flex items-center ${selected ? 'text-phuhung-blue' : 'text-gray-700'}`}>
-                        {code}. {title}
+                        {Icon && <Icon className={`w-4 h-4 mr-1.5 ${selected ? 'text-phuhung-blue' : 'text-gray-400'}`} />}
+                        <span>{code}. {title}</span>
                         {tooltip && <TooltipHelp content={tooltip} />}
                     </label>
                     {selected && <Check className="w-4 h-4 text-phuhung-blue" />}
@@ -279,6 +284,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* A - Tai Nan (Expanded) */}
                  <BenefitCard 
                     code="A" title="Tai Nạn" 
+                    icon={ShieldAlert}
                     description="Tử vong/Thương tật toàn bộ/bộ phận vĩnh viễn"
                     selected={group.chonQuyenLoiA}
                     tooltip="Bảo hiểm cho rủi ro tai nạn. STBH từ 10 triệu đến 5 tỷ đồng."
@@ -427,6 +433,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* B - Sinh Mang */}
                  <BenefitCard 
                     code="B" title="Tử vong (Ốm đau, bệnh tật)" 
+                    icon={HeartPulse}
                     description="Tử vong/TTTBVV do ốm đau, bệnh tật"
                     selected={group.chonQuyenLoiB}
                     tooltip="Bảo hiểm tử vong do ốm đau, bệnh tật, thai sản (không bao gồm tai nạn). STBH từ 10 triệu đến 5 tỷ đồng."
@@ -442,6 +449,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* C - Noi Tru (Base for many) */}
                  <BenefitCard 
                     code="C" title="Nội Trú (Ốm đau, bệnh tật)" 
+                    icon={BedDouble}
                     description="Chi phí nằm viện, phẫu thuật. Đây là quyền lợi cơ sở nếu chọn các quyền lợi phụ thuộc."
                     selected={group.chonQuyenLoiC}
                     tooltip="Chi trả chi phí nằm viện, phẫu thuật do ốm đau, bệnh tật. Thường là cơ sở cho Thai sản và Trợ cấp."
@@ -468,6 +476,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* D - Thai San (Requires C + Female) */}
                  <BenefitCard 
                     code="D" title="Thai Sản" 
+                    icon={Baby}
                     description="Biến chứng thai sản, sinh thường/mổ. (Yêu cầu tham gia C)"
                     selected={group.chonQuyenLoiD}
                     disabled={disableMaternity}
@@ -489,6 +498,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* E - Ngoai Tru (Independent) */}
                  <BenefitCard 
                     code="E" title="Điều trị Ngoại Trú" 
+                    icon={Stethoscope}
                     description="Khám bệnh, thuốc, xét nghiệm."
                     selected={group.chonQuyenLoiE}
                     tooltip="Chi trả chi phí khám chữa bệnh không nằm viện (thuốc kê đơn, xét nghiệm, X-quang, vật lý trị liệu)."
@@ -502,6 +512,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* F - Nha Khoa (Independent) */}
                  <BenefitCard 
                     code="F" title="Chăm sóc Răng" 
+                    icon={Smile}
                     description="Khám, trám, nhổ, điều trị tủy."
                     selected={group.chonQuyenLoiF}
                     tooltip="Chi trả chi phí khám răng, trám răng, nhổ răng, lấy cao răng và điều trị tủy."
@@ -515,6 +526,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* G - Nuoc Ngoai (Requires C) */}
                  <BenefitCard 
                     code="G" title="KCB & ĐT Nước Ngoài" 
+                    icon={Plane}
                     description="Phạm vi Thái Lan & Singapore. (Yêu cầu tham gia C)"
                     selected={group.chonQuyenLoiG}
                     disabled={!hasC}
@@ -530,7 +542,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  </BenefitCard>
 
                  {/* H - Income Support (Requires C) */}
-                 <div className={`col-span-1 md:col-span-2 lg:col-span-2 relative flex flex-col p-4 rounded-lg border transition-all duration-200 ${!hasC ? 'bg-gray-50 border-gray-100 opacity-60' : group.chonQuyenLoiH ? 'bg-white border-phuhung-blue shadow-md shadow-blue-50 ring-1 ring-phuhung-blue/20' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+                 <div className={`col-span-1 md:col-span-2 lg:col-span-2 relative flex flex-col p-4 rounded-xl border transition-all duration-200 ${!hasC ? 'bg-gray-50 border-gray-100 opacity-60 shadow-sm' : group.chonQuyenLoiH ? 'bg-white border-phuhung-blue shadow-lg shadow-blue-50 ring-1 ring-phuhung-blue/20' : 'bg-white border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300'}`}>
                     <div className="flex items-start gap-3 mb-3">
                         <div className="pt-0.5">
                             <input type="checkbox" checked={group.chonQuyenLoiH} disabled={!hasC}
@@ -540,7 +552,8 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                         <div className="flex-1">
                              <div className="flex justify-between items-start">
                                 <label className={`text-sm font-bold flex items-center ${group.chonQuyenLoiH ? 'text-phuhung-blue' : 'text-gray-700'}`}>
-                                    H. Trợ cấp mất giảm thu nhập
+                                    <Wallet className={`w-4 h-4 mr-1.5 ${group.chonQuyenLoiH ? 'text-phuhung-blue' : 'text-gray-400'}`} />
+                                    <span>H. Trợ cấp mất giảm thu nhập</span>
                                     <TooltipHelp content="Trợ cấp lương trong thời gian nằm viện điều trị do ốm đau, bệnh tật. Yêu cầu đã tham gia quyền lợi C." />
                                 </label>
                                 {group.chonQuyenLoiH && <Check className="w-4 h-4 text-phuhung-blue" />}
@@ -614,6 +627,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                  {/* I - Ngo Doc (Requires A) */}
                  <BenefitCard 
                     code="I" title="Ngộ độc thức ăn / Hít khí độc" 
+                    icon={Utensils}
                     description="Chi trả theo giới hạn của Quyền lợi A. (Yêu cầu tham gia A)"
                     selected={group.chonQuyenLoiI}
                     disabled={!hasA}

@@ -24,6 +24,9 @@ const Row = (cells: string[]) => {
   return `<Row>${cells.join('')}</Row>`;
 };
 
+// Format percent for Excel display (e.g. 0.1 -> 10%)
+const fmtPct = (val: number) => Math.round(val * 100) + '%';
+
 export const exportToExcel = (
   info: GeneralInfo, 
   groups: InsuranceGroup[], 
@@ -46,14 +49,16 @@ export const exportToExcel = (
     Cell('Số người', 'sHeader'),
     Cell('Phạm vi', 'sHeader'),
     Cell('Thời hạn', 'sHeader'),
-    Cell('Tổng phí trước giảm giá', 'sHeader'),
-    Cell('Tổng tăng/giảm (LR/Size)', 'sHeader'),
-    Cell('Phí cuối', 'sHeader'),
-    Cell('Phí thuần (Floor)', 'sHeader')
+    Cell('Tổng phí gốc', 'sHeader'),
+    Cell('Tổng % Tăng/Giảm', 'sHeader'),
+    Cell('Phí tính toán (CT)', 'sHeader'),
+    Cell('Phí sàn (Min)', 'sHeader'),
+    Cell('Phí cuối cùng', 'sHeader')
   ]);
 
   // Data Row
-  const diffFactor = (result.heSoGiamNhom * result.heSoTangLR * result.heSoGiamLR * result.heSoDongChiTra) - 1; // Simplified view of impact
+  const totalBaseCalc = result.tongPhiGoc;
+  const formulaPremium = totalBaseCalc * result.adjFactor * durationFactor;
   
   sheet1Rows += Row([
     Cell(info.tenKhachHang),
@@ -63,10 +68,11 @@ export const exportToExcel = (
     Cell(result.tongSoNguoi, 'sNumber'),
     Cell(info.phamViDiaLy),
     Cell(info.thoiHanBaoHiem),
-    Cell(result.phiSauThoiHan, 'sCurrency'), // Base * Duration
-    Cell(diffFactor, 'sPercent'),
-    Cell(result.phiCuoi, 'sCurrencyBold'),
-    Cell(result.phiThuanSauHeSo, 'sCurrency')
+    Cell(totalBaseCalc, 'sCurrency'), 
+    Cell(result.totalAdjPercent, 'sPercent'),
+    Cell(formulaPremium, 'sCurrency'),
+    Cell(result.phiThuanSauHeSo, 'sCurrency'),
+    Cell(result.phiCuoi, 'sCurrencyBold')
   ]);
 
   // --- SHEET 2: INPUT ---
@@ -104,7 +110,8 @@ export const exportToExcel = (
     Cell('STBH (Hạn mức)', 'sHeader'),
     Cell('Tỷ lệ phí (%)', 'sHeader'),
     Cell('Hệ số thời hạn', 'sHeader'),
-    Cell('Phí quyền lợi con (Trước CK)', 'sHeader'),
+    Cell('Tổng % Điều chỉnh', 'sHeader'),
+    Cell('Phí quyền lợi con (Sau CK)', 'sHeader'),
     Cell('Phụ thuộc', 'sHeader'),
     Cell('Trạng thái', 'sHeader')
   ]);
@@ -122,8 +129,9 @@ export const exportToExcel = (
        if (selected && si > 0) {
            rate = getBaseRate(code, age, geo, si, extra);
            // Calculate TOTAL fee for the group/individual for this benefit line
+           // Formula: Rate * SI * Duration * AdjFactor * Count
            const countToUse = specificCount !== undefined ? specificCount : g.soNguoi;
-           fee = si * rate * durationFactor * countToUse;
+           fee = si * rate * durationFactor * result.adjFactor * countToUse;
        }
 
        // Format Code for display (A_MAIN -> A1)
@@ -139,6 +147,7 @@ export const exportToExcel = (
          Cell(si, 'sNumber'),
          Cell(rate, 'sPercent'),
          Cell(durationFactor, 'sNumber'),
+         Cell(result.totalAdjPercent, 'sPercent'),
          Cell(fee, 'sCurrency'),
          Cell(dep),
          Cell(status)
@@ -203,27 +212,26 @@ export const exportToExcel = (
     Cell('Số người', 'sHeader'),
     Cell('Tuổi trung bình', 'sHeader'),
     Cell('Tổng phí gốc (Nhóm)', 'sHeader'),
-    Cell('Điều kiện giảm giá áp dụng', 'sHeader'),
-    Cell('Phí cuối nhóm (Sau CK & LR)', 'sHeader')
+    Cell('Tổng % Tăng/Giảm', 'sHeader'),
+    Cell('Phí nhóm (Ước tính theo công thức)', 'sHeader')
   ]);
 
   result.detailByGroup.forEach(g => {
-    // Calculate final group fee approximately based on total factors
-    const groupFinal = g.tongPhiGoc * durationFactor * result.heSoGiamNhom * result.heSoDongChiTra * result.heSoTangLR * result.heSoGiamLR;
+    // Calculate final group fee approximately based on total factors (Formula based)
+    const groupFinal = g.tongPhiGoc * durationFactor * result.adjFactor;
     
-    // Determine Discount text
+    // Determine Discount text string
     let discountText = [];
-    if (result.heSoGiamNhom < 1) discountText.push(`Size: -${Math.round((1-result.heSoGiamNhom)*100)}%`);
-    if (result.heSoDongChiTra < 1) discountText.push(`Copay: -${Math.round((1-result.heSoDongChiTra)*100)}%`);
-    if (result.heSoTangLR > 1) discountText.push(`LR: +${Math.round((result.heSoTangLR-1)*100)}%`);
-    if (result.heSoGiamLR < 1) discountText.push(`LR: -${Math.round((1-result.heSoGiamLR)*100)}%`);
-
+    if (result.percentCopay !== 0) discountText.push(`Copay: ${fmtPct(result.percentCopay)}`);
+    if (result.percentGroup !== 0) discountText.push(`Size: ${fmtPct(result.percentGroup)}`);
+    if (result.percentLR !== 0) discountText.push(`LR: ${fmtPct(result.percentLR)}`);
+    
     sheet4Rows += Row([
       Cell(g.tenNhom),
       Cell(g.soNguoi, 'sNumber'),
       Cell(g.tuoiTrungBinh, 'sNumber'),
       Cell(g.tongPhiGoc, 'sCurrency'),
-      Cell(discountText.join(', ') || 'None'),
+      Cell(discountText.join(', ') || '0%'),
       Cell(groupFinal, 'sCurrencyBold')
     ]);
   });

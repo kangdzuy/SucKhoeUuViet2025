@@ -146,20 +146,20 @@ export interface CalculationResult {
   tongPhiGoc: number;
   tongPhiThuanToiThieu: number;
   
+  // Factors
   heSoThoiHan: number;
-  phiSauThoiHan: number;
   
-  heSoDongChiTra: number;
-  phiSauDongChiTra: number;
+  // Additive Adjustment Components (Percentages as decimals, e.g., 0.1 for 10%)
+  percentCopay: number;    // Usually negative
+  percentGroup: number;    // Usually negative
+  percentLR: number;       // Positive or Negative
   
-  heSoGiamNhom: number;
-  phiSauNhom: number;
+  totalAdjPercent: number; // Sum of adjustments
   
-  heSoTangLR: number;
-  heSoGiamLR: number;
-  phiSauLR: number;
+  // Display Helpers
+  adjFactor: number;       // 1 + totalAdjPercent
   
-  phiThuanSauHeSo: number;
   phiCuoi: number;
+  phiThuanSauHeSo: number; // Floor value
   isFloorApplied: boolean;
 }
