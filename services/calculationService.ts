@@ -1,4 +1,3 @@
-
 import { 
   GeneralInfo, 
   InsuranceGroup, 
@@ -58,19 +57,52 @@ export const calculatePremium = (
   let tongSoNguoi = 0;
   const detailByGroup: GroupResult[] = [];
 
+  // 0. Pre-calculation: Calculate Group Weighted Average Age (Only for GROUP Contract)
+  let groupWeightedAvgAge = 0;
+  if (info.loaiHopDong === ContractType.NHOM) {
+      let totalAgeMass = 0;
+      let validPeopleCount = 0;
+      
+      groups.forEach(g => {
+          const count = Math.max(1, g.soNguoi);
+          let age = g.tuoiTrungBinh;
+          if (g.ngaySinh) {
+              const check = isValidAgeDate(g.ngaySinh);
+              if (check.valid) age = check.age;
+          }
+          if (age > 0) {
+              totalAgeMass += age * count;
+              validPeopleCount += count;
+          }
+      });
+      
+      if (validPeopleCount > 0) {
+          groupWeightedAvgAge = Math.round(totalAgeMass / validPeopleCount);
+      }
+  }
+
   // Iterate Groups to calculate Base Premiums
   groups.forEach(group => {
-    // Determine effective count and age
+    // Determine effective count
     const count = Math.max(1, group.soNguoi);
-    let avgAge = group.tuoiTrungBinh;
-    
-    // Recalculate avgAge for Individual to be sure
-    if (info.loaiHopDong === ContractType.CAN_HAN && group.ngaySinh) {
-        const check = isValidAgeDate(group.ngaySinh);
-        if (check.valid) avgAge = check.age;
-    }
-
     tongSoNguoi += count;
+
+    // Determine effective Age for Rate Lookup
+    let rateAge = 0;
+    
+    // Logic: 
+    // If Individual Contract -> Use individual age
+    // If Group Contract -> Use the calculated GROUP WEIGHTED AVERAGE AGE for everyone
+    if (info.loaiHopDong === ContractType.NHOM) {
+        rateAge = groupWeightedAvgAge;
+    } else {
+        // Individual logic
+        rateAge = group.tuoiTrungBinh;
+        if (group.ngaySinh) {
+            const check = isValidAgeDate(group.ngaySinh);
+            if (check.valid) rateAge = check.age;
+        }
+    }
 
     let groupTotalPhiGoc = 0; // Absolute total for the group
     let groupTotalPhiThuan = 0;
@@ -99,8 +131,8 @@ export const calculatePremium = (
         }
         
         if (siMainA > 0) {
-             const rateA = getBaseRate('A_MAIN', avgAge, info.phamViDiaLy, siMainA);
-             const rateAMin = getMinPureRate('A_MAIN', avgAge, info.phamViDiaLy, siMainA);
+             const rateA = getBaseRate('A_MAIN', rateAge, info.phamViDiaLy, siMainA);
+             const rateAMin = getMinPureRate('A_MAIN', rateAge, info.phamViDiaLy, siMainA);
              addToTotal('A_Chinh', siMainA * rateA, siMainA * rateAMin);
         }
 
@@ -116,23 +148,23 @@ export const calculatePremium = (
             const siAllowance = (group.luongA || 0) * months;
             
             if (siAllowance > 0) {
-                const rateSub1 = getBaseRate('A_ALLOWANCE', avgAge, info.phamViDiaLy, siAllowance, { option: group.subA_TroCap_Option });
-                const rateSub1Min = getMinPureRate('A_ALLOWANCE', avgAge, info.phamViDiaLy, siAllowance, { option: group.subA_TroCap_Option });
+                const rateSub1 = getBaseRate('A_ALLOWANCE', rateAge, info.phamViDiaLy, siAllowance, { option: group.subA_TroCap_Option });
+                const rateSub1Min = getMinPureRate('A_ALLOWANCE', rateAge, info.phamViDiaLy, siAllowance, { option: group.subA_TroCap_Option });
                 addToTotal('A_TroCap', siAllowance * rateSub1, siAllowance * rateSub1Min);
             }
         }
 
         // 3. Sub Benefit: Medical (Y Te) - DEPENDS ON A
         if (group.subA_YTe && group.stbhA_YTe > 0) {
-             const rateSub2 = getBaseRate('A_MEDICAL', avgAge, info.phamViDiaLy, group.stbhA_YTe);
-             const rateSub2Min = getMinPureRate('A_MEDICAL', avgAge, info.phamViDiaLy, group.stbhA_YTe);
+             const rateSub2 = getBaseRate('A_MEDICAL', rateAge, info.phamViDiaLy, group.stbhA_YTe);
+             const rateSub2Min = getMinPureRate('A_MEDICAL', rateAge, info.phamViDiaLy, group.stbhA_YTe);
              addToTotal('A_YTe', group.stbhA_YTe * rateSub2, group.stbhA_YTe * rateSub2Min);
         }
 
         // 4. Benefit I (Poisoning) - DEPENDS ON A
         if (group.chonQuyenLoiI && group.stbhI > 0) {
-             const rateI = getBaseRate('I', avgAge, info.phamViDiaLy, group.stbhI);
-             const rateIMin = getMinPureRate('I', avgAge, info.phamViDiaLy, group.stbhI);
+             const rateI = getBaseRate('I', rateAge, info.phamViDiaLy, group.stbhI);
+             const rateIMin = getMinPureRate('I', rateAge, info.phamViDiaLy, group.stbhI);
              addToTotal('I', group.stbhI * rateI, group.stbhI * rateIMin);
         }
     }
@@ -140,8 +172,8 @@ export const calculatePremium = (
     // --- OTHER BENEFITS ---
     const processSimpleBenefit = (code: string, selected: boolean, si: number, method?: any, extra?: any, specificCount?: number) => {
         if (selected && si > 0) {
-            const rate = getBaseRate(code, avgAge, info.phamViDiaLy, si, extra);
-            const rateMin = getMinPureRate(code, avgAge, info.phamViDiaLy, si, extra);
+            const rate = getBaseRate(code, rateAge, info.phamViDiaLy, si, extra);
+            const rateMin = getMinPureRate(code, rateAge, info.phamViDiaLy, si, extra);
             addToTotal(code, si * rate, si * rateMin, specificCount);
         }
     };
@@ -151,17 +183,20 @@ export const calculatePremium = (
     
     // Main C (Inpatient)
     if (group.chonQuyenLoiC && group.stbhC > 0) {
-        const rateC = getBaseRate('C', avgAge, info.phamViDiaLy, group.stbhC);
-        const rateCMin = getMinPureRate('C', avgAge, info.phamViDiaLy, group.stbhC);
+        const rateC = getBaseRate('C', rateAge, info.phamViDiaLy, group.stbhC);
+        const rateCMin = getMinPureRate('C', rateAge, info.phamViDiaLy, group.stbhC);
         addToTotal('C', group.stbhC * rateC, group.stbhC * rateCMin);
 
         // --- BENEFITS DEPENDENT ON C ---
         
         // D (Maternity) - SPECIAL LOGIC FOR FEMALE ONLY
         let maternityCount = 0;
-        if (info.loaiHopDong === ContractType.CAN_HAN) {
+        // Logic check: Even in Group mode, we are iterating rows.
+        // If row is a single person, check gender.
+        if (group.soNguoi === 1) {
             maternityCount = group.gioiTinh === Gender.NU ? 1 : 0;
         } else {
+            // Fallback for summary rows (though UI now encourages single listing)
             maternityCount = group.soNu || 0;
         }
 
@@ -198,7 +233,7 @@ export const calculatePremium = (
         id: group.id,
         tenNhom: group.tenNhom,
         soNguoi: count,
-        tuoiTrungBinh: avgAge,
+        tuoiTrungBinh: rateAge, // Display the rate age used (Group Avg or Individual)
         tongPhiGoc: groupTotalPhiGoc,
         tongPhiThuanToiThieu: groupTotalPhiThuan,
         details
@@ -243,11 +278,14 @@ export const calculatePremium = (
 
   // --- FINAL CALCULATION ---
   
-  // A. Calculated Premium using Formula
-  // Premium = Base * (1 + Sum%) * Duration
-  const calculatedPremium = tongPhiGoc * adjFactor * heSoThoiHan;
+  // A. Calculate Intermediate Premium (After Discounts/Loadings, Before Duration)
+  const tongPhiSauGiam = Math.round(tongPhiGoc * adjFactor);
+
+  // B. Calculated Premium using Formula
+  // Premium = (Base * (1 + Sum%)) * Duration
+  const calculatedPremium = tongPhiSauGiam * heSoThoiHan;
   
-  // B. Minimum Pure Premium Check (Floor)
+  // C. Minimum Pure Premium Check (Floor)
   // Floor = PurePremium * Duration (Floor is usually not subject to commercial discounts like Group/Copay)
   // However, to be safe, we ensure we cover the risk.
   const floorPremium = tongPhiThuanToiThieu * heSoThoiHan;
@@ -264,11 +302,25 @@ export const calculatePremium = (
   phiCuoi = Math.round(phiCuoi);
   const phiThuanSauHeSo = Math.round(floorPremium);
 
+  // --- VALIDATION RULES ---
+  const validationErrors: string[] = [];
+  
+  // Rule: Group Contract must have >= 5 people
+  if (info.loaiHopDong === ContractType.NHOM && tongSoNguoi < 5) {
+      validationErrors.push("Hợp đồng Nhóm yêu cầu tối thiểu 5 thành viên. Vui lòng thêm người hoặc chuyển sang loại hợp đồng 'Cá nhân' (nếu phù hợp).");
+  }
+
+  // Rule Suggestion: If Individual has >= 5 (though UI restricts input currently, keeping logic for robustness)
+  if (info.loaiHopDong === ContractType.CAN_HAN && tongSoNguoi >= 5) {
+      validationErrors.push("Số lượng 5 người trở lên được xem là Nhóm. Vui lòng chuyển loại hợp đồng sang 'Nhóm' để hưởng quyền lợi ưu đãi.");
+  }
+
   return {
     detailByGroup,
     tongSoNhom: groups.length,
     tongSoNguoi,
     tongPhiGoc,
+    tongPhiSauGiam,
     tongPhiThuanToiThieu,
     heSoThoiHan,
     percentCopay,
@@ -278,6 +330,7 @@ export const calculatePremium = (
     adjFactor,
     phiCuoi,
     phiThuanSauHeSo,
-    isFloorApplied
+    isFloorApplied,
+    validationErrors
   };
 };

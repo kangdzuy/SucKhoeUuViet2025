@@ -39,19 +39,21 @@ export const getLRFactors = (lr: number) => {
   let decrease = 0; // Discount
 
   // Loading Rules (Tang Phi)
-  if (lr >= 200) increase = 0.70;
-  else if (lr >= 150) increase = 0.50;
-  else if (lr >= 120) increase = 0.35;
-  else if (lr >= 100) increase = 0.20;
-  else if (lr >= 85) increase = 0.10;
-  else if (lr >= 70) increase = 0; // Neutral zone
+  if (lr >= 100) increase = 0.70;
+  else if (lr >= 90) increase = 0.60;
+  else if (lr >= 80) increase = 0.50;
+  else if (lr >= 70) increase = 0.40;
+  else if (lr >= 60) increase = 0.30;
+  else if (lr >= 50) increase = 0.20;
+  else if (lr >= 40) increase = 0.10; // Neutral zone
+
 
   // Discount Rules (Giam Phi)
-  if (lr < 20) decrease = 0.30;
+  if (lr < 10) decrease = 0.40;
+  else if (lr < 20) decrease = 0.30;
   else if (lr < 30) decrease = 0.20;
-  else if (lr < 40) decrease = 0.15;
-  else if (lr < 50) decrease = 0.10;
-  else if (lr < 60) decrease = 0.05;
+  else if (lr < 40) decrease = 0.10;
+
 
   return { increase, decrease };
 };

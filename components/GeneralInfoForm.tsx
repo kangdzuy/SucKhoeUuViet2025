@@ -46,7 +46,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         <div>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-phuhung-blue" /> Loại Hợp Đồng</span>
-            <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho nhiều nhóm người." />
+            <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho tập thể từ 5 người trở lên." />
           </label>
           <div className="flex gap-4 mt-2">
              <label className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-[#F9FAFB] transition-colors border border-transparent hover:border-[#E0E4EC]">
@@ -69,7 +69,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
                   onChange={(e) => handleChange('loaiHopDong', e.target.value)}
                   className="w-4 h-4 text-phuhung-blue focus:ring-phuhung-blue border-gray-300"
                 />
-                <span className="text-sm text-gray-700 font-medium">Nhóm</span>
+                <span className="text-sm text-gray-700 font-medium">Nhóm (≥ 5 người)</span>
              </label>
           </div>
         </div>

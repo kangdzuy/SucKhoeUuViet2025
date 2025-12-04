@@ -144,6 +144,7 @@ export interface CalculationResult {
   tongSoNguoi: number;
   
   tongPhiGoc: number;
+  tongPhiSauGiam: number; // Base Premium after Adjustments (Copay, Group, LR) but before Duration
   tongPhiThuanToiThieu: number;
   
   // Factors
@@ -162,4 +163,7 @@ export interface CalculationResult {
   phiCuoi: number;
   phiThuanSauHeSo: number; // Floor value
   isFloorApplied: boolean;
+  
+  // Validation
+  validationErrors: string[];
 }

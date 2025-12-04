@@ -49,16 +49,16 @@ export const exportToExcel = (
     Cell('Số người', 'sHeader'),
     Cell('Phạm vi', 'sHeader'),
     Cell('Thời hạn', 'sHeader'),
-    Cell('Tổng phí gốc', 'sHeader'),
+    Cell('Tổng phí gốc (Chưa giảm)', 'sHeader'),
     Cell('Tổng % Tăng/Giảm', 'sHeader'),
-    Cell('Phí tính toán (CT)', 'sHeader'),
+    Cell('Phí sau điều chỉnh (Sau giảm)', 'sHeader'),
+    Cell('Hệ số thời hạn', 'sHeader'),
     Cell('Phí sàn (Min)', 'sHeader'),
     Cell('Phí cuối cùng', 'sHeader')
   ]);
 
   // Data Row
-  const totalBaseCalc = result.tongPhiGoc;
-  const formulaPremium = totalBaseCalc * result.adjFactor * durationFactor;
+  // Use pre-calculated values from result object to ensure consistency with UI
   
   sheet1Rows += Row([
     Cell(info.tenKhachHang),
@@ -68,9 +68,10 @@ export const exportToExcel = (
     Cell(result.tongSoNguoi, 'sNumber'),
     Cell(info.phamViDiaLy),
     Cell(info.thoiHanBaoHiem),
-    Cell(totalBaseCalc, 'sCurrency'), 
+    Cell(result.tongPhiGoc, 'sCurrency'), 
     Cell(result.totalAdjPercent, 'sPercent'),
-    Cell(formulaPremium, 'sCurrency'),
+    Cell(result.tongPhiSauGiam, 'sCurrency'), // New field
+    Cell(durationFactor, 'sNumber'),
     Cell(result.phiThuanSauHeSo, 'sCurrency'),
     Cell(result.phiCuoi, 'sCurrencyBold')
   ]);
@@ -111,7 +112,7 @@ export const exportToExcel = (
     Cell('Tỷ lệ phí (%)', 'sHeader'),
     Cell('Hệ số thời hạn', 'sHeader'),
     Cell('Tổng % Điều chỉnh', 'sHeader'),
-    Cell('Phí quyền lợi con (Sau CK)', 'sHeader'),
+    Cell('Phí quyền lợi (Sau cùng)', 'sHeader'),
     Cell('Phụ thuộc', 'sHeader'),
     Cell('Trạng thái', 'sHeader')
   ]);
@@ -129,9 +130,15 @@ export const exportToExcel = (
        if (selected && si > 0) {
            rate = getBaseRate(code, age, geo, si, extra);
            // Calculate TOTAL fee for the group/individual for this benefit line
-           // Formula: Rate * SI * Duration * AdjFactor * Count
+           // Formula: Rate * SI * Count * AdjFactor * Duration
            const countToUse = specificCount !== undefined ? specificCount : g.soNguoi;
-           fee = si * rate * durationFactor * result.adjFactor * countToUse;
+           
+           // Step 1: Base
+           const baseFee = si * rate * countToUse;
+           // Step 2: Adjust
+           const adjustedFee = baseFee * result.adjFactor;
+           // Step 3: Duration
+           fee = adjustedFee * durationFactor;
        }
 
        // Format Code for display (A_MAIN -> A1)
@@ -148,7 +155,7 @@ export const exportToExcel = (
          Cell(rate, 'sPercent'),
          Cell(durationFactor, 'sNumber'),
          Cell(result.totalAdjPercent, 'sPercent'),
-         Cell(fee, 'sCurrency'),
+         Cell(Math.round(fee), 'sCurrency'),
          Cell(dep),
          Cell(status)
        ]);
@@ -211,14 +218,20 @@ export const exportToExcel = (
     Cell('Tên nhóm', 'sHeader'),
     Cell('Số người', 'sHeader'),
     Cell('Tuổi trung bình', 'sHeader'),
-    Cell('Tổng phí gốc (Nhóm)', 'sHeader'),
+    Cell('Tổng phí gốc', 'sHeader'),
     Cell('Tổng % Tăng/Giảm', 'sHeader'),
-    Cell('Phí nhóm (Ước tính theo công thức)', 'sHeader')
+    Cell('Phí sau điều chỉnh', 'sHeader'),
+    Cell('Hệ số thời hạn', 'sHeader'),
+    Cell('Phí cuối cùng', 'sHeader')
   ]);
 
   result.detailByGroup.forEach(g => {
-    // Calculate final group fee approximately based on total factors (Formula based)
-    const groupFinal = g.tongPhiGoc * durationFactor * result.adjFactor;
+    // 1. Base
+    const base = g.tongPhiGoc;
+    // 2. Adjust
+    const adjusted = Math.round(base * result.adjFactor);
+    // 3. Duration
+    const final = Math.round(adjusted * durationFactor);
     
     // Determine Discount text string
     let discountText = [];
@@ -230,9 +243,11 @@ export const exportToExcel = (
       Cell(g.tenNhom),
       Cell(g.soNguoi, 'sNumber'),
       Cell(g.tuoiTrungBinh, 'sNumber'),
-      Cell(g.tongPhiGoc, 'sCurrency'),
+      Cell(base, 'sCurrency'),
       Cell(discountText.join(', ') || '0%'),
-      Cell(groupFinal, 'sCurrencyBold')
+      Cell(adjusted, 'sCurrency'),
+      Cell(durationFactor, 'sNumber'),
+      Cell(final, 'sCurrencyBold')
     ]);
   });
 
