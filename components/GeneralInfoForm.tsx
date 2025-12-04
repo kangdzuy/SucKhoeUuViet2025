@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { GeneralInfo, ContractType, Geography, Duration, CoPay, RenewalStatus } from '../types';
-import { Info, Building2, Globe, Calendar, Percent, Briefcase, RefreshCw } from 'lucide-react';
+import { GeneralInfo, ContractType, Duration, RenewalStatus } from '../types';
+import { Info, Building2, Calendar, Briefcase, RefreshCw } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
 
 interface Props {
@@ -76,22 +77,6 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
 
         <div>
           <label className={labelClass}>
-            <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-phuhung-blue" /> Phạm Vi Địa Lý</span>
-            <TooltipHelp content="Phạm vi chi trả bảo hiểm. Chọn 'Việt Nam', 'Châu Á' hoặc 'Toàn Cầu' sẽ ảnh hưởng đến tỷ lệ phí gốc." />
-          </label>
-          <select
-            value={info.phamViDiaLy}
-            onChange={(e) => handleChange('phamViDiaLy', e.target.value)}
-            className={inputClass}
-          >
-            <option value={Geography.VIETNAM}>Việt Nam</option>
-            <option value={Geography.CHAU_A}>Châu Á (x1.5)</option>
-            <option value={Geography.TOAN_CAU}>Toàn Cầu (x2.5)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-phuhung-blue" /> Thời Hạn</span>
             <TooltipHelp content="Áp dụng bảng tỷ lệ phí ngắn hạn: 3 tháng (30%), 6 tháng (50%), 9 tháng (75%) hoặc đủ năm (100%)." />
           </label>
@@ -104,22 +89,6 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
             <option value={Duration.DEN_6_THANG}>Đến 6 Tháng (50%)</option>
             <option value={Duration.DEN_9_THANG}>Đến 9 Tháng (75%)</option>
             <option value={Duration.TREN_9_THANG}>Trên 9 Tháng (100%)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className={labelClass}>
-            <span className="flex items-center gap-1.5"><Percent className="w-4 h-4 text-phuhung-blue" /> Mức Đồng Chi Trả</span>
-            <TooltipHelp content="Nếu khách hàng đồng ý cùng chi trả % chi phí y tế (Co-pay), phí bảo hiểm sẽ được giảm tương ứng." />
-          </label>
-          <select
-            value={info.mucDongChiTra}
-            onChange={(e) => handleChange('mucDongChiTra', e.target.value)}
-            className={inputClass}
-          >
-            {Object.values(CoPay).map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
           </select>
         </div>
         

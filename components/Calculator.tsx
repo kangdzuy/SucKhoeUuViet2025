@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import GeneralInfoForm from './GeneralInfoForm';
 import InsuredList from './InsuredList';
 import ResultsSummary from './ResultsSummary';
-import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult, RenewalStatus } from '../types';
+import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult, RenewalStatus, SystemConfig } from '../types';
 import { calculatePremium } from '../services/calculationService';
 import { exportToExcel } from '../services/excelExport';
+import { configService } from '../services/configService';
 import { ArrowLeft } from 'lucide-react';
 
 interface Props {
@@ -13,12 +15,13 @@ interface Props {
 }
 
 const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
+  const [config, setConfig] = useState<SystemConfig>(configService.getConfig()); // Load config
+  
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     tenKhachHang: '',
     loaiHopDong: ContractType.CAN_HAN,
-    phamViDiaLy: Geography.VIETNAM,
+    // phamViDiaLy & mucDongChiTra REMOVED
     thoiHanBaoHiem: Duration.TREN_9_THANG,
-    mucDongChiTra: CoPay.MUC_0,
     renewalStatus: RenewalStatus.NON_CONTINUOUS,
     tyLeBoiThuongNamTruoc: 0
   });
@@ -27,13 +30,14 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
   const [result, setResult] = useState<CalculationResult | null>(null);
 
   useEffect(() => {
-    const res = calculatePremium(generalInfo, groups);
+    // Pass config to calculation service
+    const res = calculatePremium(generalInfo, groups, config);
     setResult(res);
-  }, [generalInfo, groups]);
+  }, [generalInfo, groups, config]);
 
   const handleExportExcel = () => {
     if (result && groups.length > 0) {
-      exportToExcel(generalInfo, groups, result);
+      exportToExcel(generalInfo, groups, result, config);
     } else {
       alert("Vui lòng nhập thông tin để xuất báo giá.");
     }

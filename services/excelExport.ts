@@ -1,5 +1,6 @@
-import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption, Gender } from '../types';
-import { DURATION_FACTORS, getBaseRate } from '../constants';
+
+import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption, Gender, SystemConfig } from '../types';
+import { getRateFromConfig } from './calculationService';
 
 // Helper to escape XML characters
 const esc = (str: string | number | undefined) => {
@@ -30,13 +31,14 @@ const fmtPct = (val: number) => Math.round(val * 100) + '%';
 export const exportToExcel = (
   info: GeneralInfo, 
   groups: InsuranceGroup[], 
-  result: CalculationResult
+  result: CalculationResult,
+  config: SystemConfig // ADDED CONFIG
 ) => {
   const fileName = `Bao_Gia_${info.tenKhachHang ? info.tenKhachHang.replace(/[^a-z0-9]/gi, '_') : 'Khach_Hang'}_${new Date().toISOString().slice(0,10)}.xls`;
   const createdDate = new Date().toISOString();
   
-  // Calculate common factors
-  const durationFactor = DURATION_FACTORS[info.thoiHanBaoHiem] || 1;
+  // Calculate common factors from config
+  const durationFactor = config.durationFactors[info.thoiHanBaoHiem] || 1;
 
   // --- SHEET 1: SUMMARY ---
   let sheet1Rows = '';
@@ -47,33 +49,26 @@ export const exportToExcel = (
     Cell('Sản phẩm', 'sHeader'),
     Cell('Cá nhân / Nhóm', 'sHeader'),
     Cell('Số người', 'sHeader'),
-    Cell('Phạm vi', 'sHeader'),
+    // Cell('Phạm vi', 'sHeader'), // Removed global scope
     Cell('Thời hạn', 'sHeader'),
-    Cell('Tổng phí gốc (Chưa giảm)', 'sHeader'),
-    Cell('Tổng % Tăng/Giảm', 'sHeader'),
-    Cell('Phí sau điều chỉnh (Sau giảm)', 'sHeader'),
+    Cell('Tổng phí gốc', 'sHeader'),
+    // Cell('Tổng % Tăng/Giảm', 'sHeader'), // Removed global percent
     Cell('Hệ số thời hạn', 'sHeader'),
-    Cell('Phí sàn (Min)', 'sHeader'),
     Cell('Phí cuối cùng', 'sHeader')
   ]);
 
-  // Data Row
-  // Use pre-calculated values from result object to ensure consistency with UI
-  
   sheet1Rows += Row([
     Cell(info.tenKhachHang),
     Cell(new Date().toLocaleDateString('vi-VN')),
     Cell('HEA 2025 - Ưu Việt'),
     Cell(info.loaiHopDong === ContractType.NHOM ? 'Nhóm' : 'Cá nhân'),
     Cell(result.tongSoNguoi, 'sNumber'),
-    Cell(info.phamViDiaLy),
+    // Cell(info.phamViDiaLy), // Removed global scope
     Cell(info.thoiHanBaoHiem),
     Cell(result.tongPhiGoc, 'sCurrency'), 
-    Cell(result.totalAdjPercent, 'sPercent'),
-    Cell(result.tongPhiSauGiam, 'sCurrency'), // New field
+    // Cell(result.totalAdjPercent, 'sPercent'), // Removed global
     Cell(durationFactor, 'sNumber'),
-    Cell(result.phiThuanSauHeSo, 'sCurrency'),
-    Cell(result.phiCuoi, 'sCurrencyBold')
+    Cell(result.tongPhiCuoi, 'sCurrencyBold')
   ]);
 
   // --- SHEET 2: INPUT ---
@@ -83,9 +78,9 @@ export const exportToExcel = (
     Cell('Tuổi TB', 'sHeader'),
     Cell('Giới tính (Đại diện)', 'sHeader'),
     Cell('Số lượng', 'sHeader'),
-    Cell('Phạm vi', 'sHeader'),
+    Cell('Phạm vi', 'sHeader'), // Now per person
     Cell('Thời hạn', 'sHeader'),
-    Cell('Đồng chi trả', 'sHeader'),
+    Cell('Đồng chi trả', 'sHeader'), // Now per person
     Cell('Loss Ratio (Năm trước)', 'sHeader')
   ]);
 
@@ -95,9 +90,9 @@ export const exportToExcel = (
       Cell(g.tuoiTrungBinh, 'sNumber'),
       Cell(g.gioiTinh || 'N/A'),
       Cell(g.soNguoi, 'sNumber'),
-      Cell(info.phamViDiaLy),
+      Cell(g.phamViDiaLy),
       Cell(info.thoiHanBaoHiem),
-      Cell(info.mucDongChiTra),
+      Cell(g.mucDongChiTra),
       Cell(info.tyLeBoiThuongNamTruoc, 'sNumber')
     ]);
   });
@@ -109,106 +104,118 @@ export const exportToExcel = (
     Cell('Mã QL', 'sHeader'),
     Cell('Tên quyền lợi', 'sHeader'),
     Cell('STBH (Hạn mức)', 'sHeader'),
-    Cell('Tỷ lệ phí (%)', 'sHeader'),
-    Cell('Hệ số thời hạn', 'sHeader'),
-    Cell('Tổng % Điều chỉnh', 'sHeader'),
-    Cell('Phí quyền lợi (Sau cùng)', 'sHeader'),
-    Cell('Phụ thuộc', 'sHeader'),
-    Cell('Trạng thái', 'sHeader')
+    Cell('Tỷ lệ phí Cơ Bản (%)', 'sHeader'),
+    Cell('Phí Gốc', 'sHeader'),
+    Cell('Phí Đã Giảm', 'sHeader'), // New Column
+    Cell('Phí Thuần (Min)', 'sHeader'),
+    Cell('Phí Cuối Cùng', 'sHeader'),
+    Cell('Ghi chú', 'sHeader') // Replaced Status with Note/Icon text
   ]);
 
   groups.forEach(g => {
     const age = g.tuoiTrungBinh;
-    const geo = info.phamViDiaLy;
+    const geo = g.phamViDiaLy; // Use group level Geo
 
-    // Helper to generate benefit row with SPECIFIC COUNT logic
+    // Calculate group specific adjustment
+    const percentCopay = -(config.copayDiscounts[g.mucDongChiTra] || 0);
+    const adjFactor = 1 + result.percentGroup + result.percentLR + percentCopay;
+
     const addBenRow = (code: string, name: string, selected: boolean, si: number, dep: string, method?: string, extra?: any, specificCount?: number) => {
-       const status = selected ? 'ON' : 'OFF';
-       let rate = 0;
-       let fee = 0;
+       let note = '';
+       let rateBase = 0;
+       let rateMin = 0;
        
+       let finalFee = 0;
+       let rawBaseFee = 0;
+       let adjBaseFee = 0;
+       let minFee = 0;
+       
+       let displayDiscounted = 0;
+       let displayMin = 0;
+
        if (selected && si > 0) {
-           rate = getBaseRate(code, age, geo, si, extra);
-           // Calculate TOTAL fee for the group/individual for this benefit line
-           // Formula: Rate * SI * Count * AdjFactor * Duration
+           // Get Base Rate and Min Rate
+           rateBase = getRateFromConfig(config, code, age, geo, si, extra, false);
+           rateMin = getRateFromConfig(config, code, age, geo, si, extra, true);
+           
            const countToUse = specificCount !== undefined ? specificCount : g.soNguoi;
            
-           // Step 1: Base
-           const baseFee = si * rate * countToUse;
-           // Step 2: Adjust
-           const adjustedFee = baseFee * result.adjFactor;
-           // Step 3: Duration
-           fee = adjustedFee * durationFactor;
+           rawBaseFee = si * rateBase * countToUse;
+           minFee = si * rateMin * countToUse;
+           
+           // Apply adjustments
+           adjBaseFee = rawBaseFee * adjFactor;
+           
+           // Apply Duration Factor for Display to match Final
+           displayDiscounted = adjBaseFee * durationFactor;
+           displayMin = minFee * durationFactor;
+
+           // GRANULAR FLOOR CHECK: Max(AdjustedBase, Min)
+           finalFee = Math.max(displayDiscounted, displayMin);
+           
+           if (displayMin > displayDiscounted) {
+               note = '(*) Áp dụng phí sàn';
+           }
        }
 
-       // Format Code for display (A_MAIN -> A1)
        let displayCode = code;
-       if (code === 'A_MAIN') displayCode = 'A1';
-       if (code === 'A_ALLOWANCE') displayCode = 'A2';
-       if (code === 'A_MEDICAL') displayCode = 'A3';
+       if (code === 'A_MAIN') displayCode = 'A';
+       if (code === 'A_ALLOWANCE') displayCode = 'A1';
+       if (code === 'A_MEDICAL') displayCode = 'A2';
 
-       sheet3Rows += Row([
-         Cell(g.tenNhom),
-         Cell(displayCode),
-         Cell(name),
-         Cell(si, 'sNumber'),
-         Cell(rate, 'sPercent'),
-         Cell(durationFactor, 'sNumber'),
-         Cell(result.totalAdjPercent, 'sPercent'),
-         Cell(Math.round(fee), 'sCurrency'),
-         Cell(dep),
-         Cell(status)
-       ]);
+       // Only add row if selected (or keep structure but zero out)
+       // Let's keep rows for selected benefits
+       if (selected) {
+            sheet3Rows += Row([
+                Cell(g.tenNhom),
+                Cell(displayCode),
+                Cell(name),
+                Cell(si, 'sNumber'),
+                Cell(rateBase, 'sPercent'),
+                Cell(Math.round(rawBaseFee), 'sCurrency'),
+                Cell(Math.round(displayDiscounted), 'sCurrency'),
+                Cell(Math.round(displayMin), 'sCurrency'),
+                Cell(Math.round(finalFee), 'sCurrencyBold'),
+                Cell(note)
+            ]);
+       }
     };
 
-    // A Main
     let siA = g.stbhA;
     if (g.methodA === BenefitAMethod.THEO_LUONG) siA = (g.luongA || 0) * (g.soThangLuongA || 0);
-    addBenRow('A_MAIN', 'Tai nạn (Chính)', g.chonQuyenLoiA, siA, '-');
+    addBenRow('A_MAIN', 'Chết, thương tật vĩnh viễn do Tai nạn', g.chonQuyenLoiA, siA, '-');
 
-    // A Sub 1
     let siA1 = 0;
     if (g.subA_TroCap_Option === BenefitASalaryOption.OP_3_5) siA1 = (g.luongA || 0) * 5;
     if (g.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) siA1 = (g.luongA || 0) * 9;
     if (g.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) siA1 = (g.luongA || 0) * 12;
-    addBenRow('A_ALLOWANCE', 'Trợ cấp lương (Tai nạn)', g.subA_TroCap, siA1, 'A', undefined, { option: g.subA_TroCap_Option });
+    addBenRow('A_ALLOWANCE', 'Trợ cấp ngày trong thời gian điều trị do Tai nạn', g.subA_TroCap, siA1, 'A', undefined, { option: g.subA_TroCap_Option });
 
-    // A Sub 2
-    addBenRow('A_MEDICAL', 'Y tế (Tai nạn)', g.subA_YTe, g.stbhA_YTe, 'A');
+    addBenRow('A_MEDICAL', 'Chi phí y tế do Tai nạn', g.subA_YTe, g.stbhA_YTe, 'A');
+    addBenRow('B', 'Chết do ốm đau, bệnh tật', g.chonQuyenLoiB, g.stbhB, '-');
+    addBenRow('C', 'Chi phí y tế nội trú do ốm đau, bệnh tật', g.chonQuyenLoiC, g.stbhC, '-');
 
-    // B
-    addBenRow('B', 'Tử vong (Bệnh)', g.chonQuyenLoiB, g.stbhB, '-');
-
-    // C
-    addBenRow('C', 'Nội trú', g.chonQuyenLoiC, g.stbhC, '-');
-
-    // D - SPECIAL: Only calculate for Females
     let maternityCount = 0;
     if (info.loaiHopDong === ContractType.CAN_HAN) {
         maternityCount = g.gioiTinh === Gender.NU ? 1 : 0;
     } else {
         maternityCount = g.soNu || 0;
     }
-    // Only add row if count > 0 to avoid confusion, or add with 0 fee
-    // Here we add it normally but the fee calculation inside will use maternityCount
     addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.stbhD, 'C', undefined, undefined, maternityCount);
 
-    // E
-    addBenRow('E', 'Ngoại trú', g.chonQuyenLoiE, g.stbhE, 'C');
+    addBenRow('E', 'Điều trị ngoại trú do ốm đau, bệnh tật', g.chonQuyenLoiE, g.stbhE, 'C');
+    addBenRow('F', 'Chăm sóc răng', g.chonQuyenLoiF, g.stbhF, 'C');
+    
+    // G - Pass extra selection flags
+    addBenRow('G', 'Khám chữa bệnh và điều trị ở nước ngoài', g.chonQuyenLoiG, g.stbhG, 'C', undefined, { subG_YTe: g.subG_YTe, subG_VanChuyen: g.subG_VanChuyen });
 
-    // F
-    addBenRow('F', 'Nha khoa', g.chonQuyenLoiF, g.stbhF, 'C');
-
-    // G
-    addBenRow('G', 'Nước ngoài', g.chonQuyenLoiG, g.stbhG, 'C');
-
-    // H
     let siH = g.stbhH;
     if (g.methodH === BenefitHMethod.THEO_LUONG) siH = (g.luongTrungBinh || 0) * (g.soThangLuong || 0);
-    addBenRow('H', 'Trợ cấp thu nhập', g.chonQuyenLoiH, siH, 'C');
-
-    // I
-    addBenRow('I', 'Ngộ độc', g.chonQuyenLoiI, g.stbhI, 'A');
+    // H - Pass extra selection flags
+    addBenRow('H', 'Trợ cấp mất giảm thu nhập', g.chonQuyenLoiH, siH, 'C', undefined, { subH_NamVien: g.subH_NamVien, subH_PhauThuat: g.subH_PhauThuat });
+    
+    // I - Pass extra selection flags
+    addBenRow('I', 'Ngộ độc thức ăn, đồ uống, hít phải khí độc', g.chonQuyenLoiI, g.stbhI, 'A', undefined, { subI_TuVong: g.subI_TuVong, subI_TroCap: g.subI_TroCap, subI_YTe: g.subI_YTe });
   });
 
 
@@ -220,22 +227,13 @@ export const exportToExcel = (
     Cell('Tuổi trung bình', 'sHeader'),
     Cell('Tổng phí gốc', 'sHeader'),
     Cell('Tổng % Tăng/Giảm', 'sHeader'),
-    Cell('Phí sau điều chỉnh', 'sHeader'),
     Cell('Hệ số thời hạn', 'sHeader'),
     Cell('Phí cuối cùng', 'sHeader')
   ]);
 
   result.detailByGroup.forEach(g => {
-    // 1. Base
-    const base = g.tongPhiGoc;
-    // 2. Adjust
-    const adjusted = Math.round(base * result.adjFactor);
-    // 3. Duration
-    const final = Math.round(adjusted * durationFactor);
-    
-    // Determine Discount text string
     let discountText = [];
-    if (result.percentCopay !== 0) discountText.push(`Copay: ${fmtPct(result.percentCopay)}`);
+    if (g.percentCopay !== 0) discountText.push(`Copay: ${fmtPct(g.percentCopay)}`);
     if (result.percentGroup !== 0) discountText.push(`Size: ${fmtPct(result.percentGroup)}`);
     if (result.percentLR !== 0) discountText.push(`LR: ${fmtPct(result.percentLR)}`);
     
@@ -243,24 +241,13 @@ export const exportToExcel = (
       Cell(g.tenNhom),
       Cell(g.soNguoi, 'sNumber'),
       Cell(g.tuoiTrungBinh, 'sNumber'),
-      Cell(base, 'sCurrency'),
+      Cell(g.tongPhiGoc, 'sCurrency'),
       Cell(discountText.join(', ') || '0%'),
-      Cell(adjusted, 'sCurrency'),
       Cell(durationFactor, 'sNumber'),
-      Cell(final, 'sCurrencyBold')
+      Cell(g.tongPhiCuoi, 'sCurrencyBold')
     ]);
   });
 
-
-  // --- SHEET 5: RATE SOURCE ---
-  let sheet5Rows = '';
-  sheet5Rows += Row([Cell('File Rate Source', 'sHeader'), Cell('Phiên bản', 'sHeader'), Cell('Ngày load', 'sHeader'), Cell('Ghi chú', 'sHeader')]);
-  sheet5Rows += Row([Cell('Rate_Table_A.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
-  sheet5Rows += Row([Cell('Rate_Table_BC.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
-  sheet5Rows += Row([Cell('Rate_Table_Supp.md'), Cell('1.0'), Cell(createdDate), Cell('Chính sách 2025')]);
-
-
-  // --- ASSEMBLE XML ---
   const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -320,11 +307,6 @@ export const exportToExcel = (
  <Worksheet ss:Name="Group Pricing">
   <Table>
    ${sheet4Rows}
-  </Table>
- </Worksheet>
- <Worksheet ss:Name="Rate Source">
-  <Table>
-   ${sheet5Rows}
   </Table>
  </Worksheet>
 </Workbook>`;

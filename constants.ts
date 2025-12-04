@@ -11,44 +11,51 @@ export const DURATION_FACTORS: Record<Duration, number> = {
 };
 
 // 2. Co-pay discount mapping (III.1)
+// Note: Actual values are loaded from configService, this is reference.
 export const COPAY_DISCOUNT: Record<CoPay, number> = {
   [CoPay.MUC_0]: 0,
-  [CoPay.MUC_10]: 0.05,
-  [CoPay.MUC_20]: 0.10,
-  [CoPay.MUC_30]: 0.20,
-  [CoPay.MUC_40]: 0.35,
+  [CoPay.MUC_10]: 0.10,
+  [CoPay.MUC_20]: 0.20,
+  [CoPay.MUC_30]: 0.30,
+  [CoPay.MUC_40]: 0.40,
   [CoPay.MUC_50]: 0.50,
 };
 
-// 3. Group Size Discount (Mindmap: 5% - 40%)
+// 3. Group Size Discount (2.1)
+// 5 - 10: 5%
+// 11 - 20: 10%
+// 21 - 50: 20%
+// 51 - 100: 30%
+// 101 - 150: 35%
+// > 150: 40%
 export const getGroupSizeDiscount = (size: number): number => {
   if (size < 5) return 0;
-  if (size < 20) return 0.05;   // 5 - 19
-  if (size < 50) return 0.10;   // 20 - 49
-  if (size < 100) return 0.15;  // 50 - 99
-  if (size < 200) return 0.20;  // 100 - 199
-  if (size < 300) return 0.25;  // 200 - 299
-  if (size < 500) return 0.30;  // 300 - 499
-  if (size < 1000) return 0.35; // 500 - 999
-  return 0.40;                  // >= 1000
+  if (size <= 10) return 0.05;   // 5 - 10
+  if (size <= 20) return 0.10;   // 11 - 20
+  if (size <= 50) return 0.20;   // 21 - 50
+  if (size <= 100) return 0.30;  // 51 - 100
+  if (size <= 150) return 0.35;  // 101 - 150
+  return 0.40;                   // > 150
 };
 
-// 4. Loss Ratio Adjustments (Mindmap: Tang/Giam theo ty le boi thuong nam truoc)
+// 4. Loss Ratio Adjustments (2.2 & 2.3)
 export const getLRFactors = (lr: number) => {
   let increase = 0; // Loading
   let decrease = 0; // Discount
 
   // Loading Rules (Tang Phi)
+  // 40% - <50%: 10% ... >= 100%: 70%
   if (lr >= 100) increase = 0.70;
   else if (lr >= 90) increase = 0.60;
   else if (lr >= 80) increase = 0.50;
   else if (lr >= 70) increase = 0.40;
   else if (lr >= 60) increase = 0.30;
   else if (lr >= 50) increase = 0.20;
-  else if (lr >= 40) increase = 0.10; // Neutral zone
+  else if (lr >= 40) increase = 0.10;
 
 
   // Discount Rules (Giam Phi)
+  // 30% - <40%: 10% ... <10%: 40%
   if (lr < 10) decrease = 0.40;
   else if (lr < 20) decrease = 0.30;
   else if (lr < 30) decrease = 0.20;

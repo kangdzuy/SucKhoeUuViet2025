@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Heart, Briefcase, PlusCircle, LogOut } from 'lucide-react';
+import { Car, Heart, Briefcase, PlusCircle, LogOut, Settings } from 'lucide-react';
 
 interface Props {
   onSelectProduct: (productId: string) => void;
@@ -49,11 +49,20 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
         </div>
         <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 hidden sm:block">Xin chào, <b>{userEmail}</b></span>
+            
+            <button 
+                onClick={() => onSelectProduct('admin')}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-phuhung-blue hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
+                title="Cấu hình hệ thống"
+            >
+                <Settings className="w-4 h-4" />
+            </button>
+
             <button 
                 onClick={onLogout}
                 className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors font-medium"
             >
-                <LogOut className="w-4 h-4" /> Đăng xuất
+                <LogOut className="w-4 h-4" />
             </button>
         </div>
       </div>

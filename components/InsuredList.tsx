@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { InsuranceGroup, Gender, ContractType, BenefitHMethod, BenefitAMethod, BenefitASalaryOption } from '../types';
+import { InsuranceGroup, Gender, ContractType, BenefitHMethod, BenefitAMethod, BenefitASalaryOption, Geography, CoPay } from '../types';
 import { isValidAgeDate } from '../services/calculationService';
 import { BENEFIT_LIMITS } from '../constants';
 import { 
   Trash2, PlusCircle, Edit3, Users, User, AlertCircle, Info, ChevronDown, Check,
   ShieldAlert, HeartPulse, BedDouble, Baby, Stethoscope, Smile, Plane, Wallet, Utensils, Calculator,
-  Upload, Download, FileText, Copy
+  Upload, Download, FileText, Copy, Globe, Percent
 } from 'lucide-react';
 import TooltipHelp from './TooltipHelp';
+import CurrencyInput from './CurrencyInput';
 
 interface Props {
   groups: InsuranceGroup[];
@@ -28,6 +30,9 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
 
   // Default Benefit Template
   const defaultBenefits = {
+    phamViDiaLy: Geography.VIETNAM,
+    mucDongChiTra: CoPay.MUC_0,
+
     chonQuyenLoiA: false, 
     methodA: BenefitAMethod.THEO_SO_TIEN,
     luongA: 10000000,
@@ -44,15 +49,25 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     chonQuyenLoiD: false, stbhD: 10000000,
     chonQuyenLoiE: false, stbhE: 5000000,
     chonQuyenLoiF: false, stbhF: 2000000,
-    chonQuyenLoiG: false, stbhG: 50000000,
+    
+    chonQuyenLoiG: false, 
+    stbhG: 50000000,
+    subG_YTe: true,
+    subG_VanChuyen: true,
     
     chonQuyenLoiH: false, 
     methodH: BenefitHMethod.THEO_LUONG,
     luongTrungBinh: 10000000,
     soThangLuong: 3,
     stbhH: 30000000,
+    subH_NamVien: true,
+    subH_PhauThuat: true,
     
-    chonQuyenLoiI: false, stbhI: 20000000,
+    chonQuyenLoiI: false, 
+    stbhI: 20000000,
+    subI_TuVong: true,
+    subI_TroCap: true,
+    subI_YTe: true
   };
 
   // Auto-calculate Group Stats
@@ -160,6 +175,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
           updates.chonQuyenLoiH = false;
       }
 
+      // Geo Logic: If switching to Vietnam, turn off G if active
+      if (updates.phamViDiaLy === Geography.VIETNAM) {
+          updates.chonQuyenLoiG = false;
+      }
+
       const updated = { ...p, ...updates };
       
       // AUTO CALCULATION LOGIC
@@ -196,314 +216,148 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
   // --- IMPORT / EXPORT LOGIC ---
 
   const handleDownloadTemplate = () => {
-    // Definitive columns for full calculation
+    // BOM for UTF-8 support in Excel
+    const BOM = "\uFEFF";
     const headers = [
-      "Họ và tên",
-      "Ngày sinh (dd/mm/yyyy)",
-      "Giới tính (Nam/Nữ)",
-      "A-Có tham gia? (C/K)",
-      "A-Số Tiền BH (VNĐ)",
-      "A-Lương (Nếu theo lương)",
-      "A-Số tháng lương (Nếu theo lương)",
-      "A-Trợ cấp? (C/K)",
-      "A-Gói Trợ cấp (3-5/6-9/10-12)",
-      "A-Y tế? (C/K)",
-      "A-Y tế Số tiền",
-      "B-Có tham gia? (C/K)",
-      "B-Số Tiền BH",
-      "C-Có tham gia? (C/K)",
-      "C-Số Tiền BH",
-      "D-Thai sản? (C/K)",
-      "D-Số Tiền BH",
-      "E-Ngoại trú? (C/K)",
-      "E-Số Tiền BH",
-      "F-Nha khoa? (C/K)",
-      "F-Số Tiền BH",
-      "G-Nước ngoài? (C/K)",
-      "G-Số Tiền BH",
-      "H-Trợ cấp thu nhập? (C/K)",
-      "H-Số Tiền BH",
-      "H-Lương (Nếu theo lương)",
-      "H-Số tháng lương (3/6/9/12)",
-      "I-Ngộ độc? (C/K)",
-      "I-Số Tiền BH"
+        "Họ và Tên", "Ngày Sinh (dd/mm/yyyy)", "Giới Tính (Nam/Nữ)", 
+        "Lương (VND)", "Phạm Vi (VN/Asia/Global)", "CoPay (%)",
+        "STBH A (Tai nạn)", "STBH B (Sinh mạng)", "STBH C (Nội trú)",
+        "STBH D (Thai sản)", "STBH E (Ngoại trú)", "STBH F (Nha khoa)",
+        "STBH G (Nước ngoài)", "STBH H (Trợ cấp)", "STBH I (Ngộ độc)"
     ];
-    
-    // Create an example row
-    const example = [
-      "Nguyen Van A", "01/01/1990", "Nam", 
-      "C", "100000000", "", "", "K", "", "C", "10000000", 
-      "C", "100000000", 
-      "C", "60000000", 
-      "K", "", 
-      "C", "10000000", 
-      "K", "", 
-      "K", "", 
-      "K", "", "", "", 
-      "K", ""
-    ].join(",");
+    const exampleRow = [
+        "Nguyen Van A", "01/01/1990", "Nam", 
+        "15000000", "VN", "0",
+        "100000000", "100000000", "60000000",
+        "0", "10000000", "2000000",
+        "0", "0", "0"
+    ];
 
-    const bom = "\uFEFF"; // UTF-8 BOM
-    const csvContent = bom + headers.join(",") + "\n" + example;
+    const csvContent = BOM + headers.join(",") + "\n" + exampleRow.join(",");
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = "Mau_Chi_Tiet_Uu_Viet.csv";
+    link.setAttribute('download', 'Mau_DS_BaoHiem.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   // Robust Date Parser to handle CSV variations
-  const parseDate = (dateStr: string): string => {
+  const parseDate = (dateStr: string): string => { 
     if (!dateStr) return '';
-    // 1. Clean quotes and spaces
-    const cleanStr = dateStr.trim().replace(/^["']|["']$/g, '');
-    
-    // 2. Try ISO format (yyyy-mm-dd) which input[type="date"] uses
-    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) return cleanStr;
-
-    // 3. Try splitting by /, -, or .
-    const parts = cleanStr.split(/[\/\-\.]/);
-    if (parts.length === 3) {
-      const p0 = parts[0];
-      const p1 = parts[1].padStart(2, '0');
-      const p2 = parts[2];
-
-      // yyyy-mm-dd
-      if (p0.length === 4) {
-          return `${p0}-${p1}-${p2.padStart(2, '0')}`;
-      }
-      // dd/mm/yyyy (Prioritize d/m/y format)
-      if (p2.length === 4) {
-          return `${p2}-${p1}-${p0.padStart(2, '0')}`;
-      }
-      // dd/mm/yy (Handle 2 digit year) - Assume 20xx for small numbers, 19xx for large
-      if (p2.length === 2) {
-          const y = parseInt(p2, 10);
-          const prefix = y < 50 ? '20' : '19'; 
-          return `${prefix}${p2}-${p1}-${p0.padStart(2, '0')}`;
-      }
-    }
-    return '';
+    try {
+        // Assume dd/mm/yyyy
+        const parts = dateStr.trim().split(/[\/\-\.]/);
+        if (parts.length === 3) {
+            const d = parts[0].padStart(2, '0');
+            const m = parts[1].padStart(2, '0');
+            const y = parts[2];
+            // Validate basic range
+            if (parseInt(m) > 12 || parseInt(d) > 31) return '';
+            return `${y}-${m}-${d}`; // ISO format for input[type=date]
+        }
+    } catch (e) { return ''; }
+    return ''; 
   };
 
-  const parseBool = (str: string): boolean => {
-      if (!str) return false;
-      const s = str.trim().toLowerCase().replace(/^["']|["']$/g, '');
-      return s === 'c' || s === 'co' || s === 'có' || s === 'y' || s === 'yes' || s === '1' || s === 'true';
-  };
-
-  const parseMoney = (str: string): number => {
+  const parseMoney = (str: string): number => { 
       if (!str) return 0;
-      // Remove quotes, commas (if thousand sep), dots (if thousand sep), and non-digits
-      // Warning: dot can be decimal. But in VND context usually integer.
-      // Safer: remove all non digit.
-      const numStr = str.replace(/[^0-9]/g, '');
-      return parseInt(numStr, 10) || 0;
+      // Remove non-digits
+      const clean = str.replace(/[^0-9]/g, '');
+      return parseInt(clean) || 0;
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => { 
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (!text) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          const text = e.target?.result as string;
+          if (!text) return;
 
-      // Handle universal newlines (Win/Mac/Linux)
-      const lines = text.split(/\r\n|\n|\r/);
-      if (lines.length < 2) return; // Empty or header only
+          const lines = text.split(/\r\n|\n/);
+          const newGroups: InsuranceGroup[] = [];
 
-      // AUTO DETECT SEPARATOR from header row
-      // Count commas vs semicolons in the first line
-      const headerLine = lines[0];
-      const commaCount = (headerLine.match(/,/g) || []).length;
-      const semiCount = (headerLine.match(/;/g) || []).length;
-      const separator = semiCount > commaCount ? ';' : ',';
+          // Start from index 1 to skip header
+          for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+              
+              const cols = line.split(',');
+              if (cols.length < 3) continue;
 
-      // Helper to parse a CSV line respecting quotes
-      const parseLine = (line: string): string[] => {
-         const res: string[] = [];
-         let cur = '';
-         let inQuote = false;
-         for (let i = 0; i < line.length; i++) {
-             const char = line[i];
-             if (char === '"') {
-                 inQuote = !inQuote;
-             } else if (char === separator && !inQuote) {
-                 res.push(cur); 
-                 cur = '';
-             } else {
-                 cur += char;
-             }
-         }
-         res.push(cur);
-         // Clean up quotes around value and double quotes inside
-         return res.map(val => {
-             const trimmed = val.trim();
-             if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-                 return trimmed.slice(1, -1).replace(/""/g, '"');
-             }
-             return trimmed;
-         });
+              const [
+                  name, dob, genderStr, salaryStr, geoStr, copayStr,
+                  stbhA, stbhB, stbhC, stbhD, stbhE, stbhF, stbhG, stbhH, stbhI
+              ] = cols;
+
+              const gender = genderStr?.toLowerCase().includes('nữ') || genderStr?.toLowerCase().includes('nu') || genderStr?.toLowerCase().includes('female') 
+                  ? Gender.NU : Gender.NAM;
+
+              const salary = parseMoney(salaryStr);
+              
+              let geo = Geography.VIETNAM;
+              if (geoStr?.toLowerCase().includes('asia') || geoStr?.toLowerCase().includes('châu á')) geo = Geography.CHAU_A;
+              if (geoStr?.toLowerCase().includes('global') || geoStr?.toLowerCase().includes('toàn cầu')) geo = Geography.TOAN_CAU;
+
+              // Basic default setup based on parsed data
+              const group: InsuranceGroup = {
+                  ...defaultBenefits, // Spread defaults
+                  id: crypto.randomUUID(),
+                  tenNhom: name?.trim() || `Thành viên ${i}`,
+                  ngaySinh: parseDate(dob),
+                  gioiTinh: gender,
+                  soNguoi: 1, soNam: gender === Gender.NAM ? 1 : 0, soNu: gender === Gender.NU ? 1 : 0,
+                  tuoiTrungBinh: 0, tongSoTuoi: 0, // Will be calc automatically
+                  
+                  phamViDiaLy: geo,
+                  // Simple copay mapping, default to 0
+                  mucDongChiTra: CoPay.MUC_0, 
+
+                  // Map Values if present
+                  luongA: salary,
+                  luongTrungBinh: salary,
+                  
+                  // Logic: If column has value > 0, select that benefit
+                  chonQuyenLoiA: parseMoney(stbhA) > 0, stbhA: parseMoney(stbhA) || defaultBenefits.stbhA,
+                  chonQuyenLoiB: parseMoney(stbhB) > 0, stbhB: parseMoney(stbhB) || defaultBenefits.stbhB,
+                  chonQuyenLoiC: parseMoney(stbhC) > 0, stbhC: parseMoney(stbhC) || defaultBenefits.stbhC,
+                  chonQuyenLoiD: parseMoney(stbhD) > 0, stbhD: parseMoney(stbhD) || defaultBenefits.stbhD,
+                  chonQuyenLoiE: parseMoney(stbhE) > 0, stbhE: parseMoney(stbhE) || defaultBenefits.stbhE,
+                  chonQuyenLoiF: parseMoney(stbhF) > 0, stbhF: parseMoney(stbhF) || defaultBenefits.stbhF,
+                  chonQuyenLoiG: parseMoney(stbhG) > 0, stbhG: parseMoney(stbhG) || defaultBenefits.stbhG,
+                  chonQuyenLoiH: parseMoney(stbhH) > 0, stbhH: parseMoney(stbhH) || defaultBenefits.stbhH,
+                  chonQuyenLoiI: parseMoney(stbhI) > 0, stbhI: parseMoney(stbhI) || defaultBenefits.stbhI,
+              };
+              
+              // Recalc Age
+              if (group.ngaySinh) {
+                  const check = isValidAgeDate(group.ngaySinh);
+                  if (check.valid) group.tuoiTrungBinh = check.age;
+              }
+
+              newGroups.push(group);
+          }
+
+          if (newGroups.length > 0) {
+              if (groups.length === 1 && !groups[0].tenNhom) {
+                  onChange(newGroups);
+              } else {
+                  onChange([...groups, ...newGroups]);
+              }
+              alert(`Đã nhập thành công ${newGroups.length} thành viên.`);
+          } else {
+              alert('Không đọc được dữ liệu. Vui lòng kiểm tra file mẫu.');
+          }
       };
-
-      const newItems: InsuranceGroup[] = [];
-      let successCount = 0;
-
-      // Skip header row (index 0)
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        // Use smart parser
-        const cols = parseLine(line);
-        
-        // Basic Info
-        const name = cols[0];
-        if (!name) continue;
-
-        const dobRaw = cols[1];
-        const genderRaw = (cols[2] || '').toLowerCase();
-        const dob = parseDate(dobRaw);
-        const gender = (genderRaw === 'nữ' || genderRaw === 'nu' || genderRaw === 'f') ? Gender.NU : Gender.NAM;
-        
-        let age = 0;
-        if (dob) {
-            const check = isValidAgeDate(dob);
-            if (check.valid) age = check.age;
-        }
-
-        // --- PARSE BENEFITS ---
-        // Indices matching the Header array in handleDownloadTemplate
-        
-        // Benefit A
-        const hasA = parseBool(cols[3]);
-        const stbhA = parseMoney(cols[4]);
-        const luongA = parseMoney(cols[5]);
-        const thangA = parseMoney(cols[6]);
-        const methodA = (luongA > 0) ? BenefitAMethod.THEO_LUONG : BenefitAMethod.THEO_SO_TIEN;
-        
-        const hasA_Sub1 = parseBool(cols[7]);
-        let optA_Sub1 = BenefitASalaryOption.OP_3_5;
-        const optRaw = cols[8] || '';
-        if (optRaw.includes('6-9')) optA_Sub1 = BenefitASalaryOption.OP_6_9;
-        if (optRaw.includes('10-12')) optA_Sub1 = BenefitASalaryOption.OP_10_12;
-        
-        const hasA_Sub2 = parseBool(cols[9]);
-        const stbhA_Sub2 = parseMoney(cols[10]);
-
-        // Benefit B
-        const hasB = parseBool(cols[11]);
-        const stbhB = parseMoney(cols[12]);
-
-        // Benefit C
-        const hasC = parseBool(cols[13]);
-        const stbhC = parseMoney(cols[14]);
-
-        // Benefit D
-        const hasD = parseBool(cols[15]);
-        const stbhD = parseMoney(cols[16]);
-
-        // Benefit E
-        const hasE = parseBool(cols[17]);
-        const stbhE = parseMoney(cols[18]);
-
-        // Benefit F
-        const hasF = parseBool(cols[19]);
-        const stbhF = parseMoney(cols[20]);
-
-        // Benefit G
-        const hasG = parseBool(cols[21]);
-        const stbhG = parseMoney(cols[22]);
-
-        // Benefit H
-        const hasH = parseBool(cols[23]);
-        const stbhH = parseMoney(cols[24]);
-        const luongH = parseMoney(cols[25]);
-        const thangH = parseMoney(cols[26]);
-        const methodH = (luongH > 0) ? BenefitHMethod.THEO_LUONG : BenefitHMethod.THEO_SO_TIEN;
-
-        // Benefit I
-        const hasI = parseBool(cols[27]);
-        const stbhI = parseMoney(cols[28]);
-
-
-        const newItem: InsuranceGroup = {
-            id: crypto.randomUUID(),
-            tenNhom: name,
-            soNguoi: 1,
-            soNam: gender === Gender.NAM ? 1 : 0,
-            soNu: gender === Gender.NU ? 1 : 0,
-            tongSoTuoi: 0,
-            tuoiTrungBinh: age,
-            ngaySinh: dob,
-            gioiTinh: gender,
-            
-            // Mapped Props
-            chonQuyenLoiA: hasA,
-            methodA: methodA,
-            luongA: luongA || defaultBenefits.luongA,
-            soThangLuongA: thangA || defaultBenefits.soThangLuongA,
-            stbhA: stbhA || defaultBenefits.stbhA,
-            
-            subA_TroCap: hasA_Sub1,
-            subA_TroCap_Option: optA_Sub1,
-            soThangLuongTroCap: 5, // Defaulting as csv doesn't have exact months, just package
-            subA_YTe: hasA_Sub2,
-            stbhA_YTe: stbhA_Sub2 || defaultBenefits.stbhA_YTe,
-
-            chonQuyenLoiB: hasB,
-            stbhB: stbhB || defaultBenefits.stbhB,
-
-            chonQuyenLoiC: hasC,
-            stbhC: stbhC || defaultBenefits.stbhC,
-
-            chonQuyenLoiD: hasD,
-            stbhD: stbhD || defaultBenefits.stbhD,
-
-            chonQuyenLoiE: hasE,
-            stbhE: stbhE || defaultBenefits.stbhE,
-
-            chonQuyenLoiF: hasF,
-            stbhF: stbhF || defaultBenefits.stbhF,
-
-            chonQuyenLoiG: hasG,
-            stbhG: stbhG || defaultBenefits.stbhG,
-
-            chonQuyenLoiH: hasH,
-            methodH: methodH,
-            luongTrungBinh: luongH || defaultBenefits.luongTrungBinh,
-            soThangLuong: thangH || defaultBenefits.soThangLuong,
-            stbhH: stbhH || defaultBenefits.stbhH,
-
-            chonQuyenLoiI: hasI,
-            stbhI: stbhI || defaultBenefits.stbhI,
-        };
-        newItems.push(newItem);
-        successCount++;
-      }
-
-      if (successCount > 0) {
-        // If the list only had the default empty item, replace it. Otherwise append.
-        if (groups.length === 1 && !groups[0].tenNhom && !groups[0].ngaySinh) {
-             onChange(newItems);
-        } else {
-             onChange([...groups, ...newItems]);
-        }
-        alert(`Đã nhập thành công ${successCount} dòng dữ liệu.`);
-      } else {
-        alert("Không tìm thấy dữ liệu hợp lệ. Vui lòng kiểm tra file mẫu.");
-      }
+      reader.readAsText(file);
       
       // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.readAsText(file);
   };
 
 
@@ -574,25 +428,12 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     </div>
   );
 
-  const getAllowanceRange = (op: BenefitASalaryOption) => {
-    switch(op) {
-        case BenefitASalaryOption.OP_6_9: return { min: 6, max: 9 };
-        case BenefitASalaryOption.OP_10_12: return { min: 10, max: 12 };
-        default: return { min: 3, max: 5 }; // OP_3_5
-    }
-  };
-
   // Modal or Panel for editing details
   const renderEditBenefits = (group: InsuranceGroup) => {
     const hasA = group.chonQuyenLoiA;
     const hasC = group.chonQuyenLoiC;
     const isIndividual = contractType === ContractType.CAN_HAN;
     
-    // Logic: In Group mode, we are listing individuals, so we treat row checks like individuals
-    // unless soNguoi > 1 (which shouldn't happen often if listing individually).
-    // However, if we list individually, we check Gender directly.
-    
-    // Determine if this specific row is Female for Maternity
     let isFemale = group.gioiTinh === Gender.NU;
     if (group.soNguoi > 1 && group.soNu > 0) isFemale = true; // Group logic fallback
 
@@ -600,6 +441,13 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
     
     let maternityDependencyText = "Cần chọn Quyền lợi C";
     if (hasC && !isFemale) maternityDependencyText = "Chỉ dành cho Nữ";
+    
+    // Check Geography Validity for Benefit G (Now per group)
+    const isGeoGlobalOrAsia = group.phamViDiaLy === Geography.CHAU_A || group.phamViDiaLy === Geography.TOAN_CAU;
+    const disableG = !hasC || !isGeoGlobalOrAsia;
+    let gDependencyText = "";
+    if (!hasC) gDependencyText = "Cần chọn C";
+    else if (!isGeoGlobalOrAsia) gDependencyText = "Chỉ dành cho Châu Á / Toàn Cầu";
 
     const hasNoMainBenefit = !group.chonQuyenLoiA && !group.chonQuyenLoiB && !group.chonQuyenLoiC;
 
@@ -616,6 +464,40 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                 Đang chỉnh sửa: <span className="font-semibold text-phuhung-blue">{group.tenNhom || 'Chưa đặt tên'}</span>
             </div>
         </div>
+
+        {/* --- GEOGRAPHY AND COPAY SETTINGS FOR THIS MEMBER --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white p-4 rounded-lg border border-gray-200">
+             <div>
+                <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5 mb-1.5">
+                   <Globe className="w-4 h-4 text-phuhung-blue" /> Phạm Vi Địa Lý
+                </label>
+                <select 
+                    value={group.phamViDiaLy}
+                    onChange={(e) => updateGroup(group.id, { phamViDiaLy: e.target.value as Geography })}
+                    className={inputClass}
+                >
+                    <option value={Geography.VIETNAM}>Việt Nam</option>
+                    <option value={Geography.CHAU_A}>Châu Á</option>
+                    <option value={Geography.TOAN_CAU}>Toàn Cầu</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Ảnh hưởng đến tỷ lệ phí gốc các quyền lợi.</p>
+             </div>
+             <div>
+                <label className="text-sm font-semibold text-gray-600 flex items-center gap-1.5 mb-1.5">
+                   <Percent className="w-4 h-4 text-phuhung-blue" /> Mức Đồng Chi Trả (Co-pay)
+                </label>
+                <select 
+                    value={group.mucDongChiTra}
+                    onChange={(e) => updateGroup(group.id, { mucDongChiTra: e.target.value as CoPay })}
+                    className={inputClass}
+                >
+                    {Object.values(CoPay).map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">Mức giảm phí tương ứng được áp dụng.</p>
+             </div>
+        </div>
         
         {hasNoMainBenefit && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm flex items-center gap-2">
@@ -625,7 +507,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
         )}
 
         <div className="space-y-8">
-          {/* BENEFITS CONFIGURATION (Same as before, abbreviated for update) */}
+          {/* BENEFITS CONFIGURATION */}
           
           {/* PART 1: MAIN BENEFITS */}
           <div>
@@ -635,7 +517,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  <BenefitCard 
-                    code="A" title="Tai Nạn" 
+                    code="A" title="Chết, thương tật vĩnh viễn do Tai nạn" 
                     icon={ShieldAlert} 
                     selected={group.chonQuyenLoiA} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiA: v })} 
@@ -650,11 +532,11 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                             </div>
                             {group.methodA === BenefitAMethod.THEO_LUONG ? (
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div><label className="text-xs text-gray-500 block mb-1">Lương (VND)</label><input type="number" value={group.luongA} onChange={(e) => updateGroup(group.id, { luongA: Number(e.target.value) })} className={inputClass} /></div>
+                                    <div><label className="text-xs text-gray-500 block mb-1">Lương (VND)</label><CurrencyInput value={group.luongA} onChange={(val) => updateGroup(group.id, { luongA: val })} className={inputClass} /></div>
                                     <div><label className="text-xs text-gray-500 block mb-1">Số tháng (Max 30)</label><input type="number" max="30" value={group.soThangLuongA} onChange={(e) => updateGroup(group.id, { soThangLuongA: Math.min(30, Number(e.target.value)) })} className={inputClass} /></div>
                                 </div>
                             ) : (
-                                <div><label className="text-xs text-gray-500 block mb-1">Số tiền bảo hiểm</label><input type="number" value={group.stbhA} onChange={(e) => updateGroup(group.id, { stbhA: Number(e.target.value) })} className={inputClass} /><ValidationMsg val={group.stbhA} min={BENEFIT_LIMITS.A.min} max={BENEFIT_LIMITS.A.max} /></div>
+                                <div><label className="text-xs text-gray-500 block mb-1">Số tiền bảo hiểm</label><CurrencyInput value={group.stbhA} onChange={(val) => updateGroup(group.id, { stbhA: val })} className={inputClass} /><ValidationMsg val={group.stbhA} min={BENEFIT_LIMITS.A.min} max={BENEFIT_LIMITS.A.max} /></div>
                             )}
                         </div>
                         <div className="space-y-3 pl-2 border-l-2 border-gray-200">
@@ -662,7 +544,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                  <input type="checkbox" checked={group.subA_TroCap} onChange={(e) => updateGroup(group.id, { subA_TroCap: e.target.checked })} className="mt-1" />
                                  <div className="flex-1">
                                      <div className="flex items-center">
-                                        <label className="text-sm font-medium text-gray-700">Trợ cấp lương</label>
+                                        <label className="text-sm font-medium text-gray-700">Trợ cấp ngày trong thời gian điều trị do Tai nạn</label>
                                         <TooltipHelp content="Quyền lợi mở rộng của A: Trợ cấp trong thời gian điều trị tai nạn." />
                                      </div>
                                      {group.subA_TroCap && (
@@ -677,32 +559,32 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                                  <input type="checkbox" checked={group.subA_YTe} onChange={(e) => updateGroup(group.id, { subA_YTe: e.target.checked })} className="mt-1" />
                                  <div className="flex-1">
                                      <div className="flex items-center">
-                                        <label className="text-sm font-medium text-gray-700">Chi phí y tế</label>
+                                        <label className="text-sm font-medium text-gray-700">Chi phí y tế do Tai nạn</label>
                                         <TooltipHelp content="Quyền lợi mở rộng của A: Chi trả chi phí y tế thực tế phát sinh do tai nạn." />
                                      </div>
-                                     {group.subA_YTe && (<input type="number" value={group.stbhA_YTe} onChange={(e) => updateGroup(group.id, { stbhA_YTe: Number(e.target.value) })} className={inputClass} />)}
+                                     {group.subA_YTe && (<CurrencyInput value={group.stbhA_YTe} onChange={(val) => updateGroup(group.id, { stbhA_YTe: val })} className={inputClass} />)}
                                  </div>
                              </div>
                         </div>
                     </div>
                  </BenefitCard>
                  <BenefitCard 
-                    code="B" title="Tử vong (Ốm đau)" 
+                    code="B" title="Chết do ốm đau, bệnh tật" 
                     icon={HeartPulse} 
                     selected={group.chonQuyenLoiB} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiB: v })}
                     tooltip="Bảo hiểm tử vong do ốm đau, bệnh tật, thai sản (không bao gồm tai nạn). STBH từ 10 triệu đến 5 tỷ đồng."
                  >
-                    <input type="number" value={group.stbhB} onChange={(e) => updateGroup(group.id, { stbhB: Number(e.target.value) })} className={inputClass} />
+                    <CurrencyInput value={group.stbhB} onChange={(val) => updateGroup(group.id, { stbhB: val })} className={inputClass} />
                  </BenefitCard>
                  <BenefitCard 
-                    code="C" title="Nội Trú" 
+                    code="C" title="Chi phí y tế nội trú do ốm đau, bệnh tật" 
                     icon={BedDouble} 
                     selected={group.chonQuyenLoiC} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiC: v })}
                     tooltip="Chi trả chi phí nằm viện, phẫu thuật do ốm đau, bệnh tật. Thường là cơ sở cho Thai sản và Trợ cấp."
                  >
-                    <input type="number" value={group.stbhC} onChange={(e) => updateGroup(group.id, { stbhC: Number(e.target.value) })} className={inputClass} />
+                    <CurrencyInput value={group.stbhC} onChange={(val) => updateGroup(group.id, { stbhC: val })} className={inputClass} />
                  </BenefitCard>
              </div>
           </div>
@@ -715,7 +597,7 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  <BenefitCard 
-                    code="D" title="Thai Sản" 
+                    code="D" title="Thai sản" 
                     icon={Baby} 
                     selected={group.chonQuyenLoiD} 
                     disabled={disableMaternity} 
@@ -723,39 +605,62 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiD: v })}
                     tooltip="Chi trả chi phí sinh nở và biến chứng thai sản. Điều kiện: Phải tham gia quyền lợi C, là Nữ."
                  >
-                     <input type="number" value={group.stbhD} onChange={(e) => updateGroup(group.id, { stbhD: Number(e.target.value) })} className={inputClass} />
+                     <CurrencyInput value={group.stbhD} onChange={(val) => updateGroup(group.id, { stbhD: val })} className={inputClass} />
                  </BenefitCard>
                  <BenefitCard 
-                    code="E" title="Ngoại Trú" 
+                    code="E" title="Điều trị ngoại trú do ốm đau, bệnh tật" 
                     icon={Stethoscope} 
                     selected={group.chonQuyenLoiE} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiE: v })}
                     tooltip="Chi trả chi phí khám chữa bệnh không nằm viện (thuốc kê đơn, xét nghiệm, X-quang, vật lý trị liệu)."
                  >
-                    <input type="number" value={group.stbhE} onChange={(e) => updateGroup(group.id, { stbhE: Number(e.target.value) })} className={inputClass} />
+                    <CurrencyInput value={group.stbhE} onChange={(val) => updateGroup(group.id, { stbhE: val })} className={inputClass} />
                  </BenefitCard>
                  <BenefitCard 
-                    code="F" title="Nha Khoa" 
+                    code="F" title="Chăm sóc răng" 
                     icon={Smile} 
                     selected={group.chonQuyenLoiF} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiF: v })}
                     tooltip="Chi trả chi phí khám răng, trám răng, nhổ răng, lấy cao răng và điều trị tủy."
                  >
-                    <input type="number" value={group.stbhF} onChange={(e) => updateGroup(group.id, { stbhF: Number(e.target.value) })} className={inputClass} />
+                    <CurrencyInput value={group.stbhF} onChange={(val) => updateGroup(group.id, { stbhF: val })} className={inputClass} />
                  </BenefitCard>
                  <BenefitCard 
-                    code="G" title="Nước Ngoài" 
+                    code="G" title="Khám chữa bệnh và điều trị ở nước ngoài" 
                     icon={Plane} 
                     selected={group.chonQuyenLoiG} 
-                    disabled={!hasC} 
-                    dependencyText="Cần chọn C" 
+                    disabled={disableG} 
+                    dependencyText={gDependencyText} 
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiG: v })}
                     tooltip="Mở rộng phạm vi địa lý khám chữa bệnh sang Thái Lan và Singapore. Yêu cầu tham gia quyền lợi C."
                  >
-                     <input type="number" value={group.stbhG} onChange={(e) => updateGroup(group.id, { stbhG: Number(e.target.value) })} className={inputClass} />
+                     <CurrencyInput value={group.stbhG} onChange={(val) => updateGroup(group.id, { stbhG: val })} className={inputClass} />
+                     
+                     {/* G - Split Components Checkboxes */}
+                     <div className="mt-3 bg-blue-50/50 rounded border border-blue-100 p-3 text-sm animate-in fade-in slide-in-from-top-1">
+                        <div className="font-semibold text-phuhung-blue mb-2 text-xs uppercase tracking-wide">Quyền lợi chi tiết:</div>
+                        <div className="space-y-2">
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subG_YTe} onChange={(e) => updateGroup(group.id, { subG_YTe: e.target.checked })} className="mt-0.5 cursor-pointer text-blue-600 focus:ring-blue-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subG_YTe: !group.subG_YTe })}>G.1 Chi phí y tế điều trị nội trú</label>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subG_VanChuyen} onChange={(e) => updateGroup(group.id, { subG_VanChuyen: e.target.checked })} className="mt-0.5 cursor-pointer text-blue-600 focus:ring-blue-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subG_VanChuyen: !group.subG_VanChuyen })}>G.2 Chi phí vận chuyển cấp cứu</label>
+                                     </div>
+                                 </div>
+                             </div>
+                        </div>
+                     </div>
                  </BenefitCard>
                  <BenefitCard 
-                    code="H" title="Trợ cấp thu nhập" 
+                    code="H" title="Trợ cấp mất giảm thu nhập" 
                     icon={Wallet} 
                     selected={group.chonQuyenLoiH} 
                     disabled={!hasC} 
@@ -768,13 +673,36 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                         <label className="flex items-center text-xs"><input type="radio" checked={group.methodH === BenefitHMethod.THEO_SO_TIEN} onChange={() => updateGroup(group.id, { methodH: BenefitHMethod.THEO_SO_TIEN })} className="mr-1"/> STBH</label>
                     </div>
                     {group.methodH === BenefitHMethod.THEO_LUONG ? (
-                        <div className="grid grid-cols-2 gap-2"><input type="number" value={group.luongTrungBinh} onChange={(e) => updateGroup(group.id, { luongTrungBinh: Number(e.target.value) })} className={inputClass} placeholder="Lương" /><select value={group.soThangLuong} onChange={(e) => updateGroup(group.id, { soThangLuong: Number(e.target.value) })} className={inputClass}><option value={3}>3 tháng</option><option value={6}>6 tháng</option><option value={9}>9 tháng</option><option value={12}>12 tháng</option></select></div>
+                        <div className="grid grid-cols-2 gap-2"><CurrencyInput value={group.luongTrungBinh} onChange={(val) => updateGroup(group.id, { luongTrungBinh: val })} className={inputClass} placeholder="Lương" /><select value={group.soThangLuong} onChange={(e) => updateGroup(group.id, { soThangLuong: Number(e.target.value) })} className={inputClass}><option value={3}>3 tháng</option><option value={6}>6 tháng</option><option value={9}>9 tháng</option><option value={12}>12 tháng</option></select></div>
                     ) : (
-                        <input type="number" value={group.stbhH} onChange={(e) => updateGroup(group.id, { stbhH: Number(e.target.value) })} className={inputClass} />
+                        <CurrencyInput value={group.stbhH} onChange={(val) => updateGroup(group.id, { stbhH: val })} className={inputClass} />
                     )}
+
+                    {/* H - Split Components Checkboxes */}
+                    <div className="mt-3 bg-orange-50/50 rounded border border-orange-100 p-3 text-sm animate-in fade-in slide-in-from-top-1">
+                        <div className="font-semibold text-phuhung-orange mb-2 text-xs uppercase tracking-wide">Quyền lợi chi tiết:</div>
+                        <div className="space-y-2">
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subH_NamVien} onChange={(e) => updateGroup(group.id, { subH_NamVien: e.target.checked })} className="mt-0.5 cursor-pointer text-orange-600 focus:ring-orange-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subH_NamVien: !group.subH_NamVien })}>H.1 Trợ cấp nằm viện</label>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subH_PhauThuat} onChange={(e) => updateGroup(group.id, { subH_PhauThuat: e.target.checked })} className="mt-0.5 cursor-pointer text-orange-600 focus:ring-orange-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subH_PhauThuat: !group.subH_PhauThuat })}>H.2 Trợ cấp phẫu thuật</label>
+                                     </div>
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
                  </BenefitCard>
                  <BenefitCard 
-                    code="I" title="Ngộ độc" 
+                    code="I" title="Ngộ độc thức ăn, đồ uống, hít phải khí độc" 
                     icon={Utensils} 
                     selected={group.chonQuyenLoiI} 
                     disabled={!hasA} 
@@ -782,7 +710,38 @@ const InsuredList: React.FC<Props> = ({ groups, contractType, onChange }) => {
                     onToggle={(v: boolean) => updateGroup(group.id, { chonQuyenLoiI: v })}
                     tooltip="Chi trả cho rủi ro ngộ độc thức ăn, hít phải khí độc. Yêu cầu đã tham gia quyền lợi A (Tai nạn)."
                  >
-                    <input type="number" value={group.stbhI} onChange={(e) => updateGroup(group.id, { stbhI: Number(e.target.value) })} className={inputClass} />
+                    <CurrencyInput value={group.stbhI} onChange={(val) => updateGroup(group.id, { stbhI: val })} className={inputClass} />
+                    
+                    {/* I - Split Components Checkboxes (Added per request) */}
+                     <div className="mt-3 bg-red-50/50 rounded border border-red-100 p-3 text-sm animate-in fade-in slide-in-from-top-1">
+                        <div className="font-semibold text-red-600 mb-2 text-xs uppercase tracking-wide">Quyền lợi chi tiết:</div>
+                        <div className="space-y-2">
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subI_TuVong} onChange={(e) => updateGroup(group.id, { subI_TuVong: e.target.checked })} className="mt-0.5 cursor-pointer text-red-600 focus:ring-red-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subI_TuVong: !group.subI_TuVong })}>I.1 Tử vong/Thương tật toàn bộ vĩnh viễn</label>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subI_TroCap} onChange={(e) => updateGroup(group.id, { subI_TroCap: e.target.checked })} className="mt-0.5 cursor-pointer text-red-600 focus:ring-red-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subI_TroCap: !group.subI_TroCap })}>I.2 Trợ cấp lương ngày</label>
+                                     </div>
+                                 </div>
+                             </div>
+                             <div className="flex items-start gap-2">
+                                 <input type="checkbox" checked={group.subI_YTe} onChange={(e) => updateGroup(group.id, { subI_YTe: e.target.checked })} className="mt-0.5 cursor-pointer text-red-600 focus:ring-red-500 rounded border-gray-300" />
+                                 <div className="flex-1">
+                                     <div className="flex items-center">
+                                        <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => updateGroup(group.id, { subI_YTe: !group.subI_YTe })}>I.3 Chi phí y tế, vận chuyển cấp cứu</label>
+                                     </div>
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
                  </BenefitCard>
              </div>
           </div>

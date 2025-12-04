@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import LoginScreen from './components/LoginScreen';
 import ProductDashboard from './components/ProductDashboard';
 import Calculator from './components/Calculator';
+import AdminDashboard from './components/AdminDashboard';
 
-type AppState = 'login' | 'dashboard' | 'calculator';
+type AppState = 'login' | 'dashboard' | 'calculator' | 'admin';
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppState>('login');
@@ -21,6 +23,11 @@ const App: React.FC = () => {
   };
 
   const handleSelectProduct = (productId: string) => {
+    if (productId === 'admin') {
+        setView('admin');
+        return;
+    }
+
     setSelectedProduct(productId);
     if (productId === 'uv2025') {
       setView('calculator');
@@ -51,6 +58,12 @@ const App: React.FC = () => {
       {view === 'calculator' && (
         <Calculator 
           userEmail={userEmail}
+          onBack={handleBackToDashboard} 
+        />
+      )}
+
+      {view === 'admin' && (
+        <AdminDashboard 
           onBack={handleBackToDashboard} 
         />
       )}
