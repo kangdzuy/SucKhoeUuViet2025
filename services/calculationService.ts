@@ -97,82 +97,6 @@ const getRateFromConfig = (
   // Use the correct source based on flag
   const ratesSource = useMinRates ? config.minRates : config.baseRates;
 
-  if (benefit === 'I') {
-      // Composite Benefit I: Main + Allowance + Medical
-      const { subI_TuVong, subI_TroCap, subI_YTe } = extraConfig || { subI_TuVong: true, subI_TroCap: true, subI_YTe: true };
-      
-      let totalRate = 0;
-      let hasSelection = false;
-
-      if (subI_TuVong) {
-          const r1 = getRateFromConfig(config, 'I_MAIN', age, geo, si, extraConfig, useMinRates);
-          if (r1 < 0) return -1;
-          totalRate += r1;
-          hasSelection = true;
-      }
-      if (subI_TroCap) {
-          const r2 = getRateFromConfig(config, 'I_ALLOWANCE', age, geo, si, extraConfig, useMinRates);
-          if (r2 < 0) return -1;
-          totalRate += r2;
-          hasSelection = true;
-      }
-      if (subI_YTe) {
-          const r3 = getRateFromConfig(config, 'I_MEDICAL', age, geo, si, extraConfig, useMinRates);
-          if (r3 < 0) return -1;
-          totalRate += r3;
-          hasSelection = true;
-      }
-      
-      if (!hasSelection) return 0;
-      return totalRate;
-  }
-
-  if (benefit === 'G') {
-      const { subG_YTe, subG_VanChuyen } = extraConfig || { subG_YTe: true, subG_VanChuyen: true };
-      
-      let totalRate = 0;
-      let hasSelection = false;
-
-      if (subG_YTe) {
-          const r1 = getRateFromConfig(config, 'G_MEDICAL', age, geo, si, extraConfig, useMinRates);
-          if (r1 < 0) return -1;
-          totalRate += r1;
-          hasSelection = true;
-      }
-      if (subG_VanChuyen) {
-          const r2 = getRateFromConfig(config, 'G_TRANSPORT', age, geo, si, extraConfig, useMinRates);
-          if (r2 < 0) return -1;
-          totalRate += r2;
-          hasSelection = true;
-      }
-      
-      if (!hasSelection) return 0;
-      return totalRate;
-  }
-
-  if (benefit === 'H') {
-      const { subH_NamVien, subH_PhauThuat } = extraConfig || { subH_NamVien: true, subH_PhauThuat: true };
-      
-      let totalRate = 0;
-      let hasSelection = false;
-
-      if (subH_NamVien) {
-          const r1 = getRateFromConfig(config, 'H_HOSPITALIZATION', age, geo, si, extraConfig, useMinRates);
-          if (r1 < 0) return -1;
-          totalRate += r1;
-          hasSelection = true;
-      }
-      if (subH_PhauThuat) {
-          const r2 = getRateFromConfig(config, 'H_SURGICAL', age, geo, si, extraConfig, useMinRates);
-          if (r2 < 0) return -1;
-          totalRate += r2;
-          hasSelection = true;
-      }
-
-      if (!hasSelection) return 0;
-      return totalRate;
-  }
-
   // Handle All Matrix Benefits
   const key = getRateKey(benefit, geo, si, extraConfig);
   if (key) {
@@ -355,14 +279,26 @@ export const calculatePremium = (
         });
     }
 
+    // A Main and Allowance SI Calculation - reused for Benefit I
+    let siMainA = group.stbhA;
+    if (group.methodA === BenefitAMethod.THEO_LUONG) {
+        siMainA = (group.luongCoBan || 0) * (group.soThangLuongA || 0);
+    }
+
+    let siAllowanceA = 0;
+    if (group.subA_TroCap && group.subA_TroCap_Option) {
+        let months = group.soThangLuongTroCap;
+        if (!months || months <= 0) {
+             if (group.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) months = 9;
+             else if (group.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) months = 12;
+             else months = 5;
+        }
+        siAllowanceA = (group.luongCoBan || 0) * months;
+    }
+
     // --- PROCESS BENEFIT A ---
     if (group.chonQuyenLoiA) {
         const geo = group.geoA;
-        // Main
-        let siMainA = group.stbhA;
-        if (group.methodA === BenefitAMethod.THEO_LUONG) {
-            siMainA = (group.luongCoBan || 0) * (group.soThangLuongA || 0);
-        }
         
         if (siMainA > 0) {
              // A1 (Tu Vong/PTD)
@@ -389,23 +325,14 @@ export const calculatePremium = (
         }
 
         // Sub 1: Allowance
-        if (group.subA_TroCap && group.subA_TroCap_Option) {
-            let months = group.soThangLuongTroCap;
-            if (!months || months <= 0) {
-                 if (group.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) months = 9;
-                 else if (group.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) months = 12;
-                 else months = 5;
-            }
-            const siAllowance = (group.luongCoBan || 0) * months;
-            if (siAllowance > 0) {
-                const rateSub1 = getRateFromConfig(config, 'A_ALLOWANCE', rateAge, geo, siAllowance, { option: group.subA_TroCap_Option });
-                const rateSub1Min = getMinPureRate(config, 'A_ALLOWANCE', rateAge, geo, siAllowance, { option: group.subA_TroCap_Option });
-                
-                const prem = rateSub1 < 0 ? -1 : siAllowance * rateSub1;
-                const premMin = rateSub1Min < 0 ? -1 : siAllowance * rateSub1Min;
+        if (group.subA_TroCap && siAllowanceA > 0) {
+            const rateSub1 = getRateFromConfig(config, 'A_ALLOWANCE', rateAge, geo, siAllowanceA, { option: group.subA_TroCap_Option });
+            const rateSub1Min = getMinPureRate(config, 'A_ALLOWANCE', rateAge, geo, siAllowanceA, { option: group.subA_TroCap_Option });
+            
+            const prem = rateSub1 < 0 ? -1 : siAllowanceA * rateSub1;
+            const premMin = rateSub1Min < 0 ? -1 : siAllowanceA * rateSub1Min;
 
-                addToTotal('A_TroCap', 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', geo, prem, premMin);
-            }
+            addToTotal('A_TroCap', 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', geo, prem, premMin);
         }
 
         // Sub 2: Medical
@@ -419,24 +346,45 @@ export const calculatePremium = (
              addToTotal('A_YTe', 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', geo, prem, premMin);
         }
 
-        // I (Updated to pass flags)
-        if (group.chonQuyenLoiI && group.stbhI > 0) {
+        // --- I (Poisoning) - SPLIT CALCULATION ---
+        if (group.chonQuyenLoiI) {
              const geoI = group.geoI;
-             const rateI = getRateFromConfig(config, 'I', rateAge, geoI, group.stbhI, {
-                 subI_TuVong: group.subI_TuVong,
-                 subI_TroCap: group.subI_TroCap,
-                 subI_YTe: group.subI_YTe
-             });
-             const rateIMin = getMinPureRate(config, 'I', rateAge, geoI, group.stbhI, {
-                 subI_TuVong: group.subI_TuVong,
-                 subI_TroCap: group.subI_TroCap,
-                 subI_YTe: group.subI_YTe
-             });
              
-             const prem = rateI < 0 ? -1 : group.stbhI * rateI;
-             const premMin = rateIMin < 0 ? -1 : group.stbhI * rateIMin;
+             // I1: Inherits A1 (SI Main)
+             if (group.subI_I1 && group.subA_A1 && siMainA > 0) {
+                 const rateI1 = getRateFromConfig(config, 'I_MAIN', rateAge, geoI, siMainA);
+                 const rateI1Min = getMinPureRate(config, 'I_MAIN', rateAge, geoI, siMainA);
+                 const prem = rateI1 < 0 ? -1 : siMainA * rateI1;
+                 const premMin = rateI1Min < 0 ? -1 : siMainA * rateI1Min;
+                 addToTotal('I_I1', 'I.1 Tử vong/TTTBVV do Ngộ độc', geoI, prem, premMin);
+             }
 
-             addToTotal('I', 'I. Ngộ độc', geoI, prem, premMin);
+             // I2: Inherits A2 (SI Main)
+             if (group.subI_I2 && group.subA_A2 && siMainA > 0) {
+                 const rateI2 = getRateFromConfig(config, 'I_MAIN', rateAge, geoI, siMainA);
+                 const rateI2Min = getMinPureRate(config, 'I_MAIN', rateAge, geoI, siMainA);
+                 const prem = rateI2 < 0 ? -1 : siMainA * rateI2;
+                 const premMin = rateI2Min < 0 ? -1 : siMainA * rateI2Min;
+                 addToTotal('I_I2', 'I.2 TTB PVV do Ngộ độc', geoI, prem, premMin);
+             }
+
+             // I3: Inherits A3 (SI Allowance)
+             if (group.subI_I3 && group.subA_TroCap && siAllowanceA > 0) {
+                 const rateI3 = getRateFromConfig(config, 'I_ALLOWANCE', rateAge, geoI, siAllowanceA);
+                 const rateI3Min = getMinPureRate(config, 'I_ALLOWANCE', rateAge, geoI, siAllowanceA);
+                 const prem = rateI3 < 0 ? -1 : siAllowanceA * rateI3;
+                 const premMin = rateI3Min < 0 ? -1 : siAllowanceA * rateI3Min;
+                 addToTotal('I_I3', 'I.3 Trợ cấp lương ngày do Ngộ độc', geoI, prem, premMin);
+             }
+
+             // I4: Inherits A4 (SI Medical)
+             if (group.subI_I4 && group.subA_YTe && group.stbhA_YTe > 0) {
+                 const rateI4 = getRateFromConfig(config, 'I_MEDICAL', rateAge, geoI, group.stbhA_YTe);
+                 const rateI4Min = getMinPureRate(config, 'I_MEDICAL', rateAge, geoI, group.stbhA_YTe);
+                 const prem = rateI4 < 0 ? -1 : group.stbhA_YTe * rateI4;
+                 const premMin = rateI4Min < 0 ? -1 : group.stbhA_YTe * rateI4Min;
+                 addToTotal('I_I4', 'I.4 Chi phí y tế do Ngộ độc', geoI, prem, premMin);
+             }
         }
     }
 
@@ -481,8 +429,28 @@ export const calculatePremium = (
             processSimpleBenefit('D', 'D. Thai sản', group.chonQuyenLoiD, group.geoD, group.stbhD, undefined, undefined, maternityCount);
         }
 
-        // G (Passed flags for G1/G2)
-        processSimpleBenefit('G', 'G. Nước ngoài', group.chonQuyenLoiG, group.geoG, group.stbhG, undefined, { subG_YTe: group.subG_YTe, subG_VanChuyen: group.subG_VanChuyen });
+        // G (Passed flags for G1/G2 with SEPARATE SI)
+        if (group.chonQuyenLoiG) {
+            // G1: Transport (Van chuyen)
+            if (group.subG_VanChuyen && group.stbhG_VanChuyen > 0) {
+                const rateG1 = getRateFromConfig(config, 'G_TRANSPORT', rateAge, group.geoG, group.stbhG_VanChuyen);
+                const rateG1Min = getMinPureRate(config, 'G_TRANSPORT', rateAge, group.geoG, group.stbhG_VanChuyen);
+                
+                const prem = rateG1 < 0 ? -1 : group.stbhG_VanChuyen * rateG1;
+                const premMin = rateG1Min < 0 ? -1 : group.stbhG_VanChuyen * rateG1Min;
+                addToTotal('G_VanChuyen', 'G.1 Chi phí vận chuyển cấp cứu (Nước ngoài)', group.geoG, prem, premMin);
+            }
+            
+            // G2: Medical (Y Te)
+            if (group.subG_YTe && group.stbhG_YTe > 0) {
+                const rateG2 = getRateFromConfig(config, 'G_MEDICAL', rateAge, group.geoG, group.stbhG_YTe);
+                const rateG2Min = getMinPureRate(config, 'G_MEDICAL', rateAge, group.geoG, group.stbhG_YTe);
+                
+                const prem = rateG2 < 0 ? -1 : group.stbhG_YTe * rateG2;
+                const premMin = rateG2Min < 0 ? -1 : group.stbhG_YTe * rateG2Min;
+                addToTotal('G_YTe', 'G.2 Chi phí y tế điều trị nội trú (Nước ngoài)', group.geoG, prem, premMin);
+            }
+        }
         
         let siH = group.stbhH;
         if (group.methodH === BenefitHMethod.THEO_LUONG) {
@@ -492,8 +460,16 @@ export const calculatePremium = (
                 siH = 0;
             }
         }
-        // H (Passed flags for H1/H2)
-        processSimpleBenefit('H', 'H. Trợ cấp thu nhập', group.chonQuyenLoiH, group.geoH, siH, undefined, { subH_NamVien: group.subH_NamVien, subH_PhauThuat: group.subH_PhauThuat });
+        // H (Single component calculation - H_HOSPITALIZATION)
+        if (group.chonQuyenLoiH && siH > 0) {
+             const rateH = getRateFromConfig(config, 'H_HOSPITALIZATION', rateAge, group.geoH, siH);
+             const rateHMin = getMinPureRate(config, 'H_HOSPITALIZATION', rateAge, group.geoH, siH);
+             
+             const prem = rateH < 0 ? -1 : siH * rateH;
+             const premMin = rateHMin < 0 ? -1 : siH * rateHMin;
+             
+             addToTotal('H', 'H. Trợ cấp lương ngày trong quá trình điều trị nội trú', group.geoH, prem, premMin);
+        }
         
         processSimpleBenefit('E', 'E. Ngoại trú', group.chonQuyenLoiE, group.geoE, group.stbhE);
         processSimpleBenefit('F', 'F. Nha khoa', group.chonQuyenLoiF, group.geoF, group.stbhF);
@@ -513,9 +489,13 @@ export const calculatePremium = (
         'D': 7,
         'E': 8,
         'F': 9,
-        'G': 10,
-        'H': 11,
-        'I': 12
+        'G_VanChuyen': 10,
+        'G_YTe': 11,
+        'H': 12,
+        'I_I1': 13,
+        'I_I2': 14,
+        'I_I3': 15,
+        'I_I4': 16
     };
 
     benefitDetails.sort((a, b) => {

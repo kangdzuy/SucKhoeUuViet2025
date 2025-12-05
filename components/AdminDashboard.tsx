@@ -52,13 +52,13 @@ const RATE_DEFINITIONS = [
     { key: 'G_TRANSPORT', label: 'G.2 Khám chữa bệnh ở nước ngoài (Vận chuyển)', sub: 'Tỷ lệ phí' },
 
     // BENEFIT H - SPLIT
-    { key: 'H_HOSPITALIZATION', label: 'H.1 Trợ cấp mất giảm thu nhập (Nằm viện)', sub: 'Tỷ lệ phí cơ bản' },
-    { key: 'H_SURGICAL', label: 'H.2 Trợ cấp mất giảm thu nhập (Phẫu thuật)', sub: 'Tỷ lệ phí cơ bản (Tùy chọn)' },
+    { key: 'H_HOSPITALIZATION', label: 'H.1 Trợ cấp lương ngày trong quá trình điều trị nội trú', sub: 'Tỷ lệ phí cơ bản' },
+    { key: 'H_SURGICAL', label: 'H.2 Trợ cấp mất giảm thu nhập (Phẫu thuật)', sub: 'Tỷ lệ phí cơ bản (Không còn sử dụng)' },
 
     // BENEFIT I - BROKEN DOWN BY COMPONENT
-    { key: 'I_MAIN', label: 'I.1 Tử vong/Thương tật toàn bộ/bộ phận vĩnh viễn (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản' },
-    { key: 'I_ALLOWANCE', label: 'I.2 Trợ cấp lương ngày trong thời gian điều trị (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản' },
-    { key: 'I_MEDICAL', label: 'I.3 Chi phí y tế, vận chuyển cấp cứu (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản' },
+    { key: 'I_MAIN', label: 'I.1 & I.2 Tử vong/TTTBVV/TTBPVV (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản (Áp dụng cho I1 và I2)' },
+    { key: 'I_ALLOWANCE', label: 'I.3 Trợ cấp lương ngày trong thời gian điều trị (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản' },
+    { key: 'I_MEDICAL', label: 'I.4 Chi phí y tế, vận chuyển cấp cứu (Ngộ độc)', sub: 'Tỷ lệ phí cơ bản' },
 ];
 
 const AdminDashboard: React.FC<Props> = ({ onBack }) => {

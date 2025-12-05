@@ -77,6 +77,20 @@ export enum BenefitCProgram {
   P4 = 'P4'  // 200-400M
 }
 
+// NEW: E Programs
+export enum BenefitEProgram {
+  P1 = 'P1', // 5-10M
+  P2 = 'P2', // 10-20M
+  P3 = 'P3'  // >20M
+}
+
+// NEW: F Programs
+export enum BenefitFProgram {
+  P1 = 'P1', // 2-5M
+  P2 = 'P2', // 5-10M
+  P3 = 'P3'  // 10-20M
+}
+
 // --- SYSTEM CONFIG INTERFACES ---
 export interface RateTable {
     // --- BENEFIT A: REGION SPECIFIC ---
@@ -291,19 +305,23 @@ export interface Benefits {
   // E
   chonQuyenLoiE: boolean; // Ngoai tru - Depends on C
   geoE: Geography;
+  programE: BenefitEProgram; // NEW: Program Selection for E
   stbhE: number;
   
   // F
   chonQuyenLoiF: boolean; // Nha khoa - Depends on C
   geoF: Geography;
+  programF: BenefitFProgram; // NEW: Program Selection for F
   stbhF: number;
   
   // G
   chonQuyenLoiG: boolean; // Nuoc ngoai - Depends on C
   geoG: Geography;
-  stbhG: number;
-  subG_YTe: boolean;        // G1 Selection
-  subG_VanChuyen: boolean;  // G2 Selection
+  stbhG: number; // Keep for backward compatibility/total if needed, but mainly use below
+  stbhG_VanChuyen: number; // NEW: G1 SI
+  stbhG_YTe: number;       // NEW: G2 SI
+  subG_YTe: boolean;        // G2 Selection (Medical)
+  subG_VanChuyen: boolean;  // G1 Selection (Transport)
   
   // Quyen loi H - Tro cap mat giam thu nhap
   chonQuyenLoiH: boolean;
@@ -318,10 +336,11 @@ export interface Benefits {
   // I
   chonQuyenLoiI: boolean; // Ngo doc - Depends on A
   geoI: Geography;
-  stbhI: number;
-  subI_TuVong: boolean;     // NEW: I1 Selection
-  subI_TroCap: boolean;     // NEW: I2 Selection
-  subI_YTe: boolean;        // NEW: I3 Selection
+  stbhI: number; // Legacy, kept for import safety, but values now derived from A
+  subI_I1: boolean; // I1: Death/PTD (Depends on A1)
+  subI_I2: boolean; // I2: PPD (Depends on A2)
+  subI_I3: boolean; // I3: Allowance (Depends on A3)
+  subI_I4: boolean; // I4: Medical (Depends on A4)
 }
 
 export interface InsuranceGroup extends Benefits {
