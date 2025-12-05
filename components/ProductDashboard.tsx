@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Car, Heart, Briefcase, PlusCircle, LogOut, Settings } from 'lucide-react';
+import { useLanguage, LanguageSwitcher } from '../services/languageService';
 
 interface Props {
   onSelectProduct: (productId: string) => void;
@@ -9,27 +10,29 @@ interface Props {
 }
 
 const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmail }) => {
+  const { t } = useLanguage();
+  
   const products = [
     {
       id: 'uv2025',
-      title: 'Sức Khỏe Ưu Việt 2025',
-      desc: 'Bảo hiểm sức khỏe toàn diện cho Cá nhân & Nhóm',
+      title: t('dashboard.p_uv2025'),
+      desc: t('dashboard.p_uv2025_desc'),
       icon: <Heart className="w-8 h-8 text-white" />,
       color: 'bg-phuhung-blue',
       active: true
     },
     {
       id: 'car',
-      title: 'Bảo Hiểm Xe Cơ Giới',
-      desc: 'Tính phí bảo hiểm Ô tô / Xe máy',
+      title: t('dashboard.p_car'),
+      desc: t('dashboard.p_car_desc'),
       icon: <Car className="w-8 h-8 text-white" />,
       color: 'bg-green-600',
       active: false
     },
     {
       id: 'property',
-      title: 'Bảo Hiểm Tài Sản',
-      desc: 'Bảo hiểm cháy nổ & rủi ro tài sản',
+      title: t('dashboard.p_property'),
+      desc: t('dashboard.p_property_desc'),
       icon: <Briefcase className="w-8 h-8 text-white" />,
       color: 'bg-purple-600',
       active: false
@@ -49,12 +52,17 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
             <span className="font-bold text-gray-400 text-lg border-l border-gray-300 pl-3 h-6 flex items-center">Portal</span>
         </div>
         <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 hidden sm:block">Xin chào, <b>{userEmail}</b></span>
+            {/* Language Switcher */}
+            <div className="bg-phuhung-blue p-1 rounded-lg">
+                <LanguageSwitcher />
+            </div>
+
+            <span className="text-sm text-gray-600 hidden sm:block">{t('common.welcome')}, <b>{userEmail}</b></span>
             
             <button 
                 onClick={() => onSelectProduct('admin')}
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-phuhung-blue hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
-                title="Cấu hình hệ thống"
+                title={t('common.settings')}
             >
                 <Settings className="w-4 h-4" />
             </button>
@@ -62,6 +70,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
             <button 
                 onClick={onLogout}
                 className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors font-medium"
+                title={t('common.logout')}
             >
                 <LogOut className="w-4 h-4" />
             </button>
@@ -69,8 +78,8 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-10">
-         <h1 className="text-2xl font-bold text-phuhung-text mb-2 animate-enter" style={{ animationDelay: '100ms' }}>Danh Sách Sản Phẩm</h1>
-         <p className="text-gray-500 mb-8 animate-enter" style={{ animationDelay: '150ms' }}>Vui lòng chọn sản phẩm bảo hiểm để bắt đầu tính phí.</p>
+         <h1 className="text-2xl font-bold text-phuhung-text mb-2 animate-enter" style={{ animationDelay: '100ms' }}>{t('dashboard.title')}</h1>
+         <p className="text-gray-500 mb-8 animate-enter" style={{ animationDelay: '150ms' }}>{t('dashboard.subtitle')}</p>
 
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((p, idx) => (
@@ -83,7 +92,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
                     <div className={`${p.color} p-6 flex items-center justify-between`}>
                         {p.icon}
                         <span className="bg-white/20 text-white text-xs px-2 py-1 rounded backdrop-blur-md">
-                            {p.active ? 'Sẵn sàng' : 'Sắp ra mắt'}
+                            {p.active ? t('dashboard.ready') : t('dashboard.soon')}
                         </span>
                     </div>
                     <div className="p-6">
@@ -94,7 +103,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
                             {p.desc}
                         </p>
                         <div className="flex items-center text-sm font-semibold text-phuhung-blue">
-                             {p.active ? 'Tạo báo giá mới →' : 'Đang phát triển...'}
+                             {p.active ? t('dashboard.createQuote') : t('dashboard.dev')}
                         </div>
                     </div>
                 </div>
@@ -106,7 +115,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
                 style={{ animationDelay: `${200 + (products.length * 100)}ms` }}
             >
                 <PlusCircle className="w-10 h-10 mb-3 opacity-50" />
-                <span className="text-sm font-medium">Sản phẩm khác</span>
+                <span className="text-sm font-medium">{t('dashboard.other')}</span>
             </div>
          </div>
       </div>

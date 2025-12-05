@@ -231,8 +231,10 @@ export const calculatePremium = (
     const addToTotal = (code: string, label: string, geo: string, unitPremiumBase: number, unitPremiumMin: number, specificCount?: number) => {
         // Validation Check: If rate is negative, it means N/A from config
         if (unitPremiumBase < 0 || unitPremiumMin < 0) {
-            // Push distinct error only
-            const errorMsg = `Quyền lợi "${label}" không áp dụng cho độ tuổi ${rateAge} hoặc khu vực ${geo} (Kiểm tra nhóm: ${group.tenNhom})`;
+            // Push distinct error KEY
+            // Note: This is simplified. For full dynamic translation, we'd return a struct {key, params}.
+            // For now, returning a static key for generic N/A.
+            const errorMsg = 'validation.benefitNA'; 
             if (!validationErrors.includes(errorMsg)) {
                 validationErrors.push(errorMsg);
             }
@@ -309,7 +311,7 @@ export const calculatePremium = (
                  const prem = rateA1 < 0 ? -1 : siMainA * rateA1;
                  const premMin = rateA1Min < 0 ? -1 : siMainA * rateA1Min;
                  
-                 addToTotal('A_A1', 'A1. Tử vong/Thương tật toàn bộ vĩnh viễn', geo, prem, premMin);
+                 addToTotal('A_A1', 'benefits.sub_A1', geo, prem, premMin);
              }
 
              // A2 (PPD)
@@ -320,7 +322,7 @@ export const calculatePremium = (
                  const prem = rateA2 < 0 ? -1 : siMainA * rateA2;
                  const premMin = rateA2Min < 0 ? -1 : siMainA * rateA2Min;
                  
-                 addToTotal('A_A2', 'A2. Thương tật bộ phận vĩnh viễn', geo, prem, premMin);
+                 addToTotal('A_A2', 'benefits.sub_A2', geo, prem, premMin);
              }
         }
 
@@ -332,7 +334,7 @@ export const calculatePremium = (
             const prem = rateSub1 < 0 ? -1 : siAllowanceA * rateSub1;
             const premMin = rateSub1Min < 0 ? -1 : siAllowanceA * rateSub1Min;
 
-            addToTotal('A_TroCap', 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', geo, prem, premMin);
+            addToTotal('A_TroCap', 'benefits.sub_A3', geo, prem, premMin);
         }
 
         // Sub 2: Medical
@@ -343,7 +345,7 @@ export const calculatePremium = (
              const prem = rateSub2 < 0 ? -1 : group.stbhA_YTe * rateSub2;
              const premMin = rateSub2Min < 0 ? -1 : group.stbhA_YTe * rateSub2Min;
              
-             addToTotal('A_YTe', 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', geo, prem, premMin);
+             addToTotal('A_YTe', 'benefits.sub_A4', geo, prem, premMin);
         }
 
         // --- I (Poisoning) - SPLIT CALCULATION ---
@@ -406,7 +408,7 @@ export const calculatePremium = (
     if (group.methodB === BenefitBMethod.THEO_LUONG) {
          siB = (group.luongCoBan || 0) * (group.soThangLuongB || 0);
     }
-    processSimpleBenefit('B', 'B. Sinh mạng', group.chonQuyenLoiB, group.geoB, siB);
+    processSimpleBenefit('B', 'benefits.B_title', group.chonQuyenLoiB, group.geoB, siB);
     
     if (group.chonQuyenLoiC && group.stbhC > 0) {
         const geoC = group.geoC;
@@ -416,7 +418,7 @@ export const calculatePremium = (
         const prem = rateC < 0 ? -1 : group.stbhC * rateC;
         const premMin = rateCMin < 0 ? -1 : group.stbhC * rateCMin;
 
-        addToTotal('C', 'C. Nội trú', geoC, prem, premMin);
+        addToTotal('C', 'benefits.C_title', geoC, prem, premMin);
 
         // D (Maternity)
         let maternityCount = 0;
@@ -426,7 +428,7 @@ export const calculatePremium = (
             maternityCount = group.soNu || 0;
         }
         if (maternityCount > 0) {
-            processSimpleBenefit('D', 'D. Thai sản', group.chonQuyenLoiD, group.geoD, group.stbhD, undefined, undefined, maternityCount);
+            processSimpleBenefit('D', 'benefits.D_title', group.chonQuyenLoiD, group.geoD, group.stbhD, undefined, undefined, maternityCount);
         }
 
         // G (Passed flags for G1/G2 with SEPARATE SI)
@@ -438,7 +440,7 @@ export const calculatePremium = (
                 
                 const prem = rateG1 < 0 ? -1 : group.stbhG_VanChuyen * rateG1;
                 const premMin = rateG1Min < 0 ? -1 : group.stbhG_VanChuyen * rateG1Min;
-                addToTotal('G_VanChuyen', 'G.1 Chi phí vận chuyển cấp cứu (Nước ngoài)', group.geoG, prem, premMin);
+                addToTotal('G_VanChuyen', 'benefits.sub_G1', group.geoG, prem, premMin);
             }
             
             // G2: Medical (Y Te)
@@ -448,7 +450,7 @@ export const calculatePremium = (
                 
                 const prem = rateG2 < 0 ? -1 : group.stbhG_YTe * rateG2;
                 const premMin = rateG2Min < 0 ? -1 : group.stbhG_YTe * rateG2Min;
-                addToTotal('G_YTe', 'G.2 Chi phí y tế điều trị nội trú (Nước ngoài)', group.geoG, prem, premMin);
+                addToTotal('G_YTe', 'benefits.sub_G2', group.geoG, prem, premMin);
             }
         }
         
@@ -468,11 +470,11 @@ export const calculatePremium = (
              const prem = rateH < 0 ? -1 : siH * rateH;
              const premMin = rateHMin < 0 ? -1 : siH * rateHMin;
              
-             addToTotal('H', 'H. Trợ cấp lương ngày trong quá trình điều trị nội trú', group.geoH, prem, premMin);
+             addToTotal('H', 'benefits.H_title', group.geoH, prem, premMin);
         }
         
-        processSimpleBenefit('E', 'E. Ngoại trú', group.chonQuyenLoiE, group.geoE, group.stbhE);
-        processSimpleBenefit('F', 'F. Nha khoa', group.chonQuyenLoiF, group.geoF, group.stbhF);
+        processSimpleBenefit('E', 'benefits.E_title', group.chonQuyenLoiE, group.geoE, group.stbhE);
+        processSimpleBenefit('F', 'benefits.F_title', group.chonQuyenLoiF, group.geoF, group.stbhF);
     }
 
     tongPhiGoc += groupTotalPhiGoc;
@@ -520,10 +522,10 @@ export const calculatePremium = (
 
   // General Validations
   if (info.loaiHopDong === ContractType.NHOM && tongSoNguoi < 5) {
-      validationErrors.push("Hợp đồng Nhóm yêu cầu tối thiểu 5 thành viên.");
+      validationErrors.push('validation.groupMin5');
   }
   if (info.loaiHopDong === ContractType.CAN_HAN && tongSoNguoi >= 5) {
-      validationErrors.push("Số lượng 5 người trở lên được xem là Nhóm.");
+      validationErrors.push('validation.individualMax4');
   }
 
   return {

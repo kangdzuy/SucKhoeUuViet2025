@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import GeneralInfoForm from './GeneralInfoForm';
 import InsuredList from './InsuredList';
 import ResultsSummary from './ResultsSummary';
-import { GeneralInfo, InsuranceGroup, ContractType, Geography, Duration, CoPay, CalculationResult, RenewalStatus, SystemConfig } from '../types';
+import { GeneralInfo, InsuranceGroup, ContractType, Duration, CalculationResult, RenewalStatus, SystemConfig } from '../types';
 import { calculatePremium } from '../services/calculationService';
 import { exportToExcel } from '../services/excelExport';
 import { configService } from '../services/configService';
 import { ArrowLeft } from 'lucide-react';
+import { useLanguage, LanguageSwitcher } from '../services/languageService';
 
 interface Props {
   onBack: () => void;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<SystemConfig>(configService.getConfig()); // Load config
   
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
@@ -52,7 +54,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
              <button 
                 onClick={onBack}
                 className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
-                title="Quay lại danh sách sản phẩm"
+                title={t('common.back')}
              >
                 <ArrowLeft className="w-5 h-5 text-white" />
              </button>
@@ -64,13 +66,17 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
                />
             </div>
             <div className="hidden md:flex flex-col border-l border-blue-400/30 pl-4 h-10 justify-center">
-              <span className="font-bold text-lg leading-none">Ưu Việt 2025</span>
-              <span className="text-[11px] text-blue-100 font-light opacity-80 uppercase tracking-wide">Công cụ tính phí</span>
+              <span className="font-bold text-lg leading-none">{t('dashboard.p_uv2025')}</span>
+              <span className="text-[11px] text-blue-100 font-light opacity-80 uppercase tracking-wide">Portal</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-sm">
-             <span className="hidden sm:block text-blue-200">Xin chào, {userEmail}</span>
+             {/* Language Switcher */}
+             <div className="bg-white/20 p-1 rounded-lg">
+                <LanguageSwitcher />
+             </div>
+             <span className="hidden sm:block text-blue-200">{t('common.welcome')}, {userEmail}</span>
           </div>
         </div>
       </header>
@@ -79,8 +85,8 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
         
         <div className="mb-6 animate-enter" style={{ animationDelay: '100ms' }}>
-           <h1 className="text-2xl font-bold text-phuhung-text">Bảo Hiểm Sức Khỏe Ưu Việt</h1>
-           <p className="text-phuhung-textSec mt-1 text-sm">Nhập thông tin chi tiết bên dưới, phí bảo hiểm sẽ được tính toán tự động ở cột bên phải.</p>
+           <h1 className="text-2xl font-bold text-phuhung-text">{t('calculator.title')}</h1>
+           <p className="text-phuhung-textSec mt-1 text-sm">{t('calculator.subtitle')}</p>
         </div>
         
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">

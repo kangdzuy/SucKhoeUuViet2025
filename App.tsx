@@ -4,10 +4,11 @@ import LoginScreen from './components/LoginScreen';
 import ProductDashboard from './components/ProductDashboard';
 import Calculator from './components/Calculator';
 import AdminDashboard from './components/AdminDashboard';
+import { LanguageProvider } from './services/languageService';
 
 type AppState = 'login' | 'dashboard' | 'calculator' | 'admin';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [view, setView] = useState<AppState>('login');
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<string>('');
@@ -70,5 +71,13 @@ const App: React.FC = () => {
     </>
   );
 };
+
+const App: React.FC = () => {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
+}
 
 export default App;

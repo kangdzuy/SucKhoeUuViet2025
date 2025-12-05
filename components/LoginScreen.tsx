@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { useLanguage, LanguageSwitcher } from '../services/languageService';
 
 interface Props {
   onLoginSuccess: (email: string) => void;
 }
 
 const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
+  const { t } = useLanguage();
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -16,7 +18,7 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
-      setError('Vui lòng nhập email hợp lệ');
+      setError(t('login.invalidEmail'));
       return;
     }
     
@@ -35,7 +37,7 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (otp !== '123456') {
-      setError('Mã OTP không chính xác (Gợi ý: 123456)');
+      setError(`${t('login.invalidOtp')} (Gợi ý: 123456)`);
       return;
     }
 
@@ -50,7 +52,14 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-enter">
         {/* Header */}
-        <div className="bg-white p-8 pb-6 text-center border-b border-gray-100 relative overflow-hidden">
+        <div className="bg-white p-8 pb-6 text-center border-b border-gray-100 relative overflow-visible">
+           {/* Language Switcher Float */}
+           <div className="absolute top-4 right-4">
+               <div className="bg-phuhung-blue p-1 rounded-lg">
+                  <LanguageSwitcher />
+               </div>
+           </div>
+
            <div className="flex justify-center mb-4 animate-enter" style={{ animationDelay: '100ms' }}>
              <img 
                 src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
@@ -58,7 +67,9 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                 className="h-20 object-contain"
              />
            </div>
-           <h2 className="text-lg font-bold text-phuhung-blue uppercase tracking-wide animate-enter" style={{ animationDelay: '200ms' }}>Hệ Thống Tính Phí Bảo Hiểm</h2>
+           <h2 className="text-lg font-bold text-phuhung-blue uppercase tracking-wide animate-enter" style={{ animationDelay: '200ms' }}>
+               {t('login.title')}
+           </h2>
         </div>
 
         {/* Form */}
@@ -66,8 +77,8 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
           {step === 'email' ? (
             <form onSubmit={handleSendOtp} className="space-y-5">
               <div className="text-center mb-6 animate-enter" style={{ animationDelay: '300ms' }}>
-                <h3 className="text-lg font-bold text-gray-800">Đăng Nhập</h3>
-                <p className="text-gray-500 text-sm mt-1">Nhập email công ty để nhận mã OTP</p>
+                <h3 className="text-lg font-bold text-gray-800">{t('common.login')}</h3>
+                <p className="text-gray-500 text-sm mt-1">{t('login.subtitle')}</p>
               </div>
 
               <div className="space-y-4">
@@ -79,7 +90,7 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                     type="email"
                     required
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue transition duration-150 ease-in-out sm:text-sm"
-                    placeholder="name@pac.vn"
+                    placeholder={t('login.emailPlaceholder')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -97,15 +108,15 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                   className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-phuhung-blue hover:bg-phuhung-blueHover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-phuhung-blue transition-all shadow-md hover:shadow-lg disabled:opacity-70 animate-enter"
                   style={{ animationDelay: '500ms' }}
                 >
-                  {isLoading ? 'Đang gửi...' : 'Tiếp Tục'}
+                  {isLoading ? t('common.processing') : t('common.continue')}
                 </button>
               </div>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
                <div className="text-center mb-6 animate-enter">
-                <h3 className="text-lg font-bold text-gray-800">Xác Thực OTP</h3>
-                <p className="text-gray-500 text-sm mt-1">Mã xác thực đã gửi tới <b>{email}</b></p>
+                <h3 className="text-lg font-bold text-gray-800">{t('login.otpTitle')}</h3>
+                <p className="text-gray-500 text-sm mt-1">{t('login.otpSubtitle')} <b>{email}</b></p>
               </div>
 
               <div className="space-y-4">
@@ -136,14 +147,14 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                     onClick={() => setStep('email')}
                     className="flex-1 py-3 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-all"
                   >
-                    Quay Lại
+                    {t('login.back')}
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading}
                     className="flex-[2] flex justify-center items-center gap-2 py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-phuhung-blue hover:bg-phuhung-blueHover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-phuhung-blue transition-all shadow-md hover:shadow-lg disabled:opacity-70"
                   >
-                    {isLoading ? 'Đang xử lý...' : <>Đăng Nhập <ArrowRight className="w-4 h-4" /></>}
+                    {isLoading ? t('common.processing') : <>{t('common.login')} <ArrowRight className="w-4 h-4" /></>}
                   </button>
                 </div>
               </div>
