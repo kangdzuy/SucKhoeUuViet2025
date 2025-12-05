@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Car, Heart, Briefcase, PlusCircle, LogOut, Settings } from 'lucide-react';
 
@@ -38,7 +39,7 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
   return (
     <div className="min-h-screen bg-phuhung-bg font-sans">
       {/* Top Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-30 animate-enter">
         <div className="flex items-center gap-3">
             <img 
                src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
@@ -68,15 +69,16 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-10">
-         <h1 className="text-2xl font-bold text-phuhung-text mb-2">Danh Sách Sản Phẩm</h1>
-         <p className="text-gray-500 mb-8">Vui lòng chọn sản phẩm bảo hiểm để bắt đầu tính phí.</p>
+         <h1 className="text-2xl font-bold text-phuhung-text mb-2 animate-enter" style={{ animationDelay: '100ms' }}>Danh Sách Sản Phẩm</h1>
+         <p className="text-gray-500 mb-8 animate-enter" style={{ animationDelay: '150ms' }}>Vui lòng chọn sản phẩm bảo hiểm để bắt đầu tính phí.</p>
 
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((p) => (
+            {products.map((p, idx) => (
                 <div 
                     key={p.id}
                     onClick={() => p.active && onSelectProduct(p.id)}
-                    className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group transition-all duration-300 ${p.active ? 'hover:shadow-md hover:-translate-y-1 cursor-pointer' : 'opacity-60 cursor-not-allowed grayscale-[0.5]'}`}
+                    className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group transition-all duration-300 animate-enter ${p.active ? 'hover:shadow-md hover:-translate-y-1 cursor-pointer' : 'opacity-60 cursor-not-allowed grayscale-[0.5]'}`}
+                    style={{ animationDelay: `${200 + (idx * 100)}ms` }}
                 >
                     <div className={`${p.color} p-6 flex items-center justify-between`}>
                         {p.icon}
@@ -99,7 +101,10 @@ const ProductDashboard: React.FC<Props> = ({ onSelectProduct, onLogout, userEmai
             ))}
 
             {/* Placeholder for new product */}
-            <div className="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-8 text-gray-400 min-h-[240px]">
+            <div 
+                className="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-8 text-gray-400 min-h-[240px] animate-enter"
+                style={{ animationDelay: `${200 + (products.length * 100)}ms` }}
+            >
                 <PlusCircle className="w-10 h-10 mb-3 opacity-50" />
                 <span className="text-sm font-medium">Sản phẩm khác</span>
             </div>

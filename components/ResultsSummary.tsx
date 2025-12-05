@@ -39,14 +39,15 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
   };
 
   // Helper to get geography label
-  const getGeoLabel = (g: Geography) => {
-      if (g === Geography.VIETNAM) return 'Việt Nam';
-      if (g === Geography.CHAU_A) return 'Châu Á';
-      return 'Toàn Cầu';
+  const getGeoLabel = (g: string) => {
+      if (g === Geography.VIETNAM) return 'VN';
+      if (g === Geography.CHAU_A) return 'Asia';
+      if (g === Geography.TOAN_CAU) return 'Global';
+      return g;
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-phuhung-blue/20 overflow-hidden animate-in fade-in slide-in-from-right-4 ring-1 ring-black/5">
+    <div className="bg-white rounded-xl shadow-lg border border-phuhung-blue/20 overflow-hidden ring-1 ring-black/5 animate-enter">
       
       {/* Header */}
       <div className={`p-4 flex items-center justify-between ${hasErrors ? 'bg-red-600' : 'bg-phuhung-blue'}`}>
@@ -189,9 +190,6 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
                                     <div className="truncate text-xs font-semibold text-gray-700" title={g.tenNhom}>
                                         {g.tenNhom || '(Chưa đặt tên)'}
                                     </div>
-                                    <div className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 whitespace-nowrap hidden sm:block">
-                                        {getGeoLabel(g.phamViDiaLy)}
-                                    </div>
                                     {g.percentCopay !== 0 && (
                                         <div className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded whitespace-nowrap hidden sm:block">
                                             Co-pay: {g.mucDongChiTra}
@@ -212,13 +210,13 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
                             {isExpanded && (
                                 <div className="bg-gray-50/50 p-2 text-[10px] animate-in slide-in-from-top-1">
                                     <div className="mb-2 text-xs text-gray-500 flex gap-4 sm:hidden">
-                                        <span>Phạm vi: <b>{getGeoLabel(g.phamViDiaLy)}</b></span>
                                         <span>Co-pay: <b>{g.mucDongChiTra}</b></span>
                                     </div>
                                     <table className="w-full">
                                         <thead>
                                             <tr className="text-gray-400 text-left border-b border-gray-200">
                                                 <th className="py-1 pl-2 font-medium">Quyền lợi</th>
+                                                <th className="py-1 text-center font-medium">KV</th>
                                                 <th className="py-1 text-right font-medium">Đã giảm</th>
                                                 <th className="py-1 text-right font-medium">Sàn (Min)</th>
                                                 <th className="py-1 text-right font-medium text-gray-700">Áp dụng</th>
@@ -229,6 +227,9 @@ const ResultsSummary: React.FC<Props> = ({ result, onExport }) => {
                                                 <tr key={idx} className="hover:bg-white">
                                                     <td className="py-1.5 pl-2 text-gray-600 font-medium">
                                                         {b.label}
+                                                    </td>
+                                                    <td className="py-1.5 text-center text-gray-400">
+                                                        {getGeoLabel(b.geo)}
                                                     </td>
                                                     <td className="py-1.5 text-right text-gray-500">
                                                         {formatMoney(b.discountedFee)}

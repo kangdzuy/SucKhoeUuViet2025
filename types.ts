@@ -49,17 +49,42 @@ export enum BenefitAMethod {
   THEO_SO_TIEN = 'TheoSoTien'
 }
 
+// Config for Benefit B (Death/Illness)
+export enum BenefitBMethod {
+  THEO_LUONG = 'TheoLuong',
+  THEO_SO_TIEN = 'TheoSoTien'
+}
+
 export enum BenefitASalaryOption {
   OP_3_5 = '3-5',
   OP_6_9 = '6-9',
   OP_10_12 = '10-12'
 }
 
+// NEW: A4 Programs
+export enum BenefitA4Program {
+  P1 = 'P1', // 20-40M
+  P2 = 'P2', // 40-60M
+  P3 = 'P3', // 60-100M
+  P4 = 'P4'  // 100-1000M
+}
+
+// NEW: C Programs
+export enum BenefitCProgram {
+  P1 = 'P1', // 40-60M
+  P2 = 'P2', // 60-100M
+  P3 = 'P3', // 100-200M
+  P4 = 'P4'  // 200-400M
+}
+
 // --- SYSTEM CONFIG INTERFACES ---
 export interface RateTable {
     // --- BENEFIT A: REGION SPECIFIC ---
     // VIETNAM
-    A_MAIN_VN: number[];
+    // SPLIT A1 and A2
+    A1_VN: number[]; // Death / PTD
+    A2_VN: number[]; // PPD
+    
     A_ALLOWANCE_3_5_VN: number[];
     A_ALLOWANCE_6_9_VN: number[];
     A_ALLOWANCE_10_12_VN: number[];
@@ -67,8 +92,11 @@ export interface RateTable {
     A_MEDICAL_MID1_VN: number[]; // 40-60M
     A_MEDICAL_MID2_VN: number[]; // 60-100M
     A_MEDICAL_HIGH_VN: number[]; // > 100M
+    
     // ASIA
-    A_MAIN_ASIA: number[];
+    A1_ASIA: number[];
+    A2_ASIA: number[];
+
     A_ALLOWANCE_3_5_ASIA: number[];
     A_ALLOWANCE_6_9_ASIA: number[];
     A_ALLOWANCE_10_12_ASIA: number[];
@@ -76,8 +104,11 @@ export interface RateTable {
     A_MEDICAL_MID1_ASIA: number[];
     A_MEDICAL_MID2_ASIA: number[];
     A_MEDICAL_HIGH_ASIA: number[];
+    
     // GLOBAL
-    A_MAIN_GLOBAL: number[];
+    A1_GLOBAL: number[];
+    A2_GLOBAL: number[];
+
     A_ALLOWANCE_3_5_GLOBAL: number[];
     A_ALLOWANCE_6_9_GLOBAL: number[];
     A_ALLOWANCE_10_12_GLOBAL: number[];
@@ -212,55 +243,81 @@ export interface GeneralInfo {
 
 export interface Benefits {
   // Moved from GeneralInfo to Benefits (Individual Level)
-  phamViDiaLy: Geography;
+  // phamViDiaLy REMOVED - now per benefit
   mucDongChiTra: CoPay;
+  
+  luongCoBan: number; // Unified Salary Field for A and H
 
   // Quyen loi A - Tai nan (Updated)
   chonQuyenLoiA: boolean;
+  geoA: Geography;
   methodA: BenefitAMethod;
-  luongA: number; // Salary for A calculation
+  // luongA removed (use luongCoBan)
   soThangLuongA: number; // Max 30 for main benefit
   stbhA: number; // Main SI (Death/PTD)
   
-  // A - Sub 1: Tro cap luong
+  // A - Sub Components
+  subA_A1: boolean; // Tu Vong / TTTBVV
+  subA_A2: boolean; // Thuong tat bo phan vinh vien
+
+  // A - Sub 1: Tro cap luong (A3)
   subA_TroCap: boolean;
   subA_TroCap_Option: BenefitASalaryOption;
   soThangLuongTroCap: number; // Số tháng cụ thể cho trợ cấp (3-12)
 
-  // A - Sub 2: Y te
+  // A - Sub 2: Y te (A4)
   subA_YTe: boolean;
+  subA_YTe_Program: BenefitA4Program; // NEW: Selection by Program
   stbhA_YTe: number;
 
+  // B
   chonQuyenLoiB: boolean;
+  geoB: Geography;
+  methodB: BenefitBMethod;
+  soThangLuongB: number;
   stbhB: number;
   
+  // C
   chonQuyenLoiC: boolean;
+  geoC: Geography;
+  programC: BenefitCProgram; // NEW: Program Selection for C
   stbhC: number;
   
+  // D
   chonQuyenLoiD: boolean; // Thai san - Depends on C
+  geoD: Geography;
   stbhD: number;
   
+  // E
   chonQuyenLoiE: boolean; // Ngoai tru - Depends on C
+  geoE: Geography;
   stbhE: number;
   
+  // F
   chonQuyenLoiF: boolean; // Nha khoa - Depends on C
+  geoF: Geography;
   stbhF: number;
   
+  // G
   chonQuyenLoiG: boolean; // Nuoc ngoai - Depends on C
+  geoG: Geography;
   stbhG: number;
   subG_YTe: boolean;        // G1 Selection
   subG_VanChuyen: boolean;  // G2 Selection
   
   // Quyen loi H - Tro cap mat giam thu nhap
   chonQuyenLoiH: boolean;
+  geoH: Geography;
   methodH: BenefitHMethod;
-  luongTrungBinh: number; // For Method Salary
+  // luongTrungBinh removed (use luongCoBan)
   soThangLuong: number; // 3, 6, 9, 12
   stbhH: number; // Final SI for calc
   subH_NamVien: boolean;    // H1 Selection
   subH_PhauThuat: boolean;  // H2 Selection
   
+  // I
   chonQuyenLoiI: boolean; // Ngo doc - Depends on A
+  geoI: Geography;
   stbhI: number;
   subI_TuVong: boolean;     // NEW: I1 Selection
   subI_TroCap: boolean;     // NEW: I2 Selection
@@ -287,6 +344,7 @@ export interface InsuranceGroup extends Benefits {
 export interface BenefitResultDetail {
   code: string;
   label: string;
+  geo: string;            // Added Geo to result detail
   baseFee: number;        // Raw Base
   discountedFee: number;  // Base * Adj * Duration (The "Normal" Price)
   minFee: number;         // Min * Duration (The "Floor" Price)
@@ -304,7 +362,7 @@ export interface GroupResult {
   benefitDetails: BenefitResultDetail[]; // Detailed list of benefits for this group
   
   // Per group factors for display
-  phamViDiaLy: Geography;
+  // phamViDiaLy: Geography; // REMOVED from GroupResult as it is now per-benefit
   mucDongChiTra: CoPay;
   percentCopay: number; 
 }

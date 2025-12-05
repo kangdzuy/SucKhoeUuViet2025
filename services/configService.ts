@@ -1,6 +1,7 @@
+
 import { SystemConfig, Duration, CoPay, Geography, RateTable } from '../types';
 
-const STORAGE_KEY = 'PAC_CALC_CONFIG_V4'; // Version bumped for G/H split
+const STORAGE_KEY = 'PAC_CALC_CONFIG_V5'; // Version bumped for A1/A2 split
 
 // Helper to clone base rates and apply 0.7 factor for default Min Rates
 const generateDefaultMinRates = (base: RateTable): RateTable => {
@@ -17,7 +18,10 @@ const generateDefaultMinRates = (base: RateTable): RateTable => {
 
 const DEFAULT_BASE_RATES: RateTable = {
     // --- BENEFIT A - VIETNAM ---
-    A_MAIN_VN: [0.17, 0.11, 0.12, 0.13, 0.17],
+    // Split into A1 (Death/PTD) and A2 (PPD) - Initialized with same base for now
+    A1_VN: [0.17, 0.11, 0.12, 0.13, 0.17], 
+    A2_VN: [0.17, 0.11, 0.12, 0.13, 0.17],
+
     A_ALLOWANCE_3_5_VN: [0.80, 0.49, 0.55, 0.61, 0.80],
     A_ALLOWANCE_6_9_VN: [0.68, 0.42, 0.47, 0.52, 0.68],
     A_ALLOWANCE_10_12_VN: [0.62, 0.38, 0.43, 0.47, 0.62],
@@ -27,7 +31,9 @@ const DEFAULT_BASE_RATES: RateTable = {
     A_MEDICAL_HIGH_VN: [0.86, 0.53, 0.60, 0.66, 0.86], // > 100M
 
     // --- BENEFIT A - ASIA ---
-    A_MAIN_ASIA: [0.22, 0.13, 0.15, 0.17, 0.22],
+    A1_ASIA: [0.22, 0.13, 0.15, 0.17, 0.22],
+    A2_ASIA: [0.22, 0.13, 0.15, 0.17, 0.22],
+
     A_ALLOWANCE_3_5_ASIA: [1.00, 0.61, 0.69, 0.77, 1.00],
     A_ALLOWANCE_6_9_ASIA: [0.85, 0.52, 0.59, 0.66, 0.85],
     A_ALLOWANCE_10_12_ASIA: [0.77, 0.47, 0.53, 0.59, 0.77],
@@ -37,7 +43,9 @@ const DEFAULT_BASE_RATES: RateTable = {
     A_MEDICAL_HIGH_ASIA: [1.08, 0.66, 0.75, 0.83, 1.08],
 
     // --- BENEFIT A - GLOBAL ---
-    A_MAIN_GLOBAL: [0.24, 0.15, 0.17, 0.19, 0.24],
+    A1_GLOBAL: [0.24, 0.15, 0.17, 0.19, 0.24],
+    A2_GLOBAL: [0.24, 0.15, 0.17, 0.19, 0.24],
+
     A_ALLOWANCE_3_5_GLOBAL: [1.12, 0.69, 0.77, 0.86, 1.12],
     A_ALLOWANCE_6_9_GLOBAL: [0.95, 0.59, 0.66, 0.73, 0.95],
     A_ALLOWANCE_10_12_GLOBAL: [0.86, 0.53, 0.60, 0.66, 0.86],
@@ -180,14 +188,7 @@ export const configService = {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        // Migration check: If stored config is missing G_MEDICAL_VN (new table format), reset
-        const parsed = JSON.parse(stored);
-        
-        if (!parsed.baseRates.G_MEDICAL_VN) {
-           console.log("Config migration: G/H Rate Table structure update. Upgrading...");
-           return DEFAULT_CONFIG; 
-        }
-        return parsed as SystemConfig;
+        return JSON.parse(stored) as SystemConfig;
       }
     } catch (e) {
       console.error("Failed to load config", e);

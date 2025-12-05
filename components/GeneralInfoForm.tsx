@@ -33,7 +33,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 animate-enter" style={{ animationDelay: '0ms' }}>
           <label className={labelClass}>Tên Khách Hàng / Công Ty</label>
           <input
             type="text"
@@ -44,7 +44,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
           />
         </div>
 
-        <div>
+        <div className="animate-enter" style={{ animationDelay: '50ms' }}>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4 text-phuhung-blue" /> Loại Hợp Đồng</span>
             <TooltipHelp content="Chọn 'Cá nhân' nếu tính phí cho 1 người. Chọn 'Nhóm' nếu tính phí cho tập thể từ 5 người trở lên." />
@@ -75,7 +75,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
           </div>
         </div>
 
-        <div>
+        <div className="animate-enter" style={{ animationDelay: '100ms' }}>
           <label className={labelClass}>
             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-phuhung-blue" /> Thời Hạn</span>
             <TooltipHelp content="Áp dụng bảng tỷ lệ phí ngắn hạn: 3 tháng (30%), 6 tháng (50%), 9 tháng (75%) hoặc đủ năm (100%)." />
@@ -95,7 +95,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
         {/* Renewal Status & Loss Ratio - ONLY FOR GROUPS */}
         {isGroup && (
           <>
-            <div className="animate-in fade-in slide-in-from-top-2">
+            <div className="animate-enter" style={{ animationDelay: '150ms' }}>
                 <label className={labelClass}>
                     <span className="flex items-center gap-1.5"><RefreshCw className="w-4 h-4 text-phuhung-blue" /> Tái Tục (Chỉ dành cho Nhóm)</span>
                     <TooltipHelp content="Chọn 'Có tái tục liên tục' để được áp dụng giảm phí nếu Loss Ratio tốt. Chọn 'Không' nếu là đơn mới hoặc gián đoạn (chỉ bị tăng phí nếu Loss Ratio xấu)." />
@@ -126,7 +126,7 @@ const GeneralInfoForm: React.FC<Props> = ({ info, onChange }) => {
                 </div>
             </div>
 
-            <div className="animate-in fade-in slide-in-from-top-2">
+            <div className="animate-enter" style={{ animationDelay: '200ms' }}>
               <label className={labelClass}>
                 <span className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-phuhung-blue" /> Tỷ Lệ Bồi Thường (%)</span>
                 <TooltipHelp content="Nhập tỷ lệ bồi thường năm trước (nếu có). Nếu chọn 'Không tái tục liên tục', hệ thống chỉ áp dụng tăng phí (không giảm phí)." />

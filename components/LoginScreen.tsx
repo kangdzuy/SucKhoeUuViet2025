@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 
@@ -47,99 +48,111 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-gray-100 animate-enter">
         {/* Header */}
         <div className="bg-white p-8 pb-6 text-center border-b border-gray-100 relative overflow-hidden">
-           <div className="flex justify-center mb-4">
+           <div className="flex justify-center mb-4 animate-enter" style={{ animationDelay: '100ms' }}>
              <img 
                 src="https://www.baohiemphuhung.vn/assets/pac-logo-vn-BrmkJGw6.png" 
                 alt="Phu Hung Assurance" 
                 className="h-20 object-contain"
              />
            </div>
-           <h2 className="text-lg font-bold text-phuhung-blue uppercase tracking-wide">Hệ Thống Tính Phí Bảo Hiểm</h2>
+           <h2 className="text-lg font-bold text-phuhung-blue uppercase tracking-wide animate-enter" style={{ animationDelay: '200ms' }}>Hệ Thống Tính Phí Bảo Hiểm</h2>
         </div>
 
         {/* Form */}
         <div className="p-8 pt-6">
           {step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-5 animate-in slide-in-from-right-8 duration-300">
-              <div className="text-center mb-6">
+            <form onSubmit={handleSendOtp} className="space-y-5">
+              <div className="text-center mb-6 animate-enter" style={{ animationDelay: '300ms' }}>
                 <h3 className="text-lg font-bold text-gray-800">Đăng Nhập</h3>
-                <p className="text-gray-500 text-sm mt-1">Nhập email công ty để nhận mã xác thực</p>
+                <p className="text-gray-500 text-sm mt-1">Nhập email công ty để nhận mã OTP</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input 
-                    type="email" 
+              <div className="space-y-4">
+                <div className="relative animate-enter" style={{ animationDelay: '400ms' }}>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue transition duration-150 ease-in-out sm:text-sm"
+                    placeholder="name@pac.vn"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-phuhung-blue/20 focus:border-phuhung-blue outline-none transition-all"
-                    placeholder="example@pacvn.vn"
-                    autoFocus
                   />
                 </div>
+
+                {error && (
+                  <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg flex items-center gap-2 animate-enter">
+                     <span>⚠️</span> {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-phuhung-blue hover:bg-phuhung-blueHover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-phuhung-blue transition-all shadow-md hover:shadow-lg disabled:opacity-70 animate-enter"
+                  style={{ animationDelay: '500ms' }}
+                >
+                  {isLoading ? 'Đang gửi...' : 'Tiếp Tục'}
+                </button>
               </div>
-
-              {error && <p className="text-red-500 text-sm text-center bg-red-50 py-2 rounded">{error}</p>}
-
-              <button 
-                type="submit" 
-                disabled={isLoading}
-                className="w-full bg-phuhung-blue hover:bg-phuhung-blueHover text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-              >
-                {isLoading ? 'Đang gửi...' : <>Tiếp Tục <ArrowRight className="w-4 h-4" /></>}
-              </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-5 animate-in slide-in-from-right-8 duration-300">
-              <div className="text-center mb-6">
+            <form onSubmit={handleVerifyOtp} className="space-y-5">
+               <div className="text-center mb-6 animate-enter">
                 <h3 className="text-lg font-bold text-gray-800">Xác Thực OTP</h3>
-                <p className="text-gray-500 text-sm mt-1">Mã xác thực đã được gửi đến <span className="font-semibold text-gray-700">{email}</span></p>
+                <p className="text-gray-500 text-sm mt-1">Mã xác thực đã gửi tới <b>{email}</b></p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Mã OTP (6 số)</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input 
-                    type="text" 
+              <div className="space-y-4">
+                <div className="relative animate-enter" style={{ animationDelay: '100ms' }}>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-phuhung-blue focus:border-phuhung-blue transition duration-150 ease-in-out sm:text-sm tracking-widest text-center font-bold text-lg"
+                    placeholder="• • • • • •"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-phuhung-blue/20 focus:border-phuhung-blue outline-none transition-all tracking-[4px] font-bold text-center text-lg"
-                    placeholder="------"
-                    autoFocus
+                    onChange={(e) => setOtp(e.target.value)}
                   />
                 </div>
+
+                {error && (
+                  <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg flex items-center gap-2 animate-enter">
+                     <span>⚠️</span> {error}
+                  </div>
+                )}
+
+                <div className="flex gap-3 animate-enter" style={{ animationDelay: '200ms' }}>
+                  <button
+                    type="button"
+                    onClick={() => setStep('email')}
+                    className="flex-1 py-3 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-all"
+                  >
+                    Quay Lại
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-[2] flex justify-center items-center gap-2 py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-phuhung-blue hover:bg-phuhung-blueHover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-phuhung-blue transition-all shadow-md hover:shadow-lg disabled:opacity-70"
+                  >
+                    {isLoading ? 'Đang xử lý...' : <>Đăng Nhập <ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </div>
               </div>
-
-              {error && <p className="text-red-500 text-sm text-center bg-red-50 py-2 rounded">{error}</p>}
-
-              <button 
-                type="submit" 
-                disabled={isLoading}
-                className="w-full bg-phuhung-orange hover:bg-phuhung-orangeHover text-white font-bold py-3 rounded-lg shadow-lg shadow-orange-900/10 transition-all disabled:opacity-70"
-              >
-                {isLoading ? 'Đang kiểm tra...' : 'Xác Nhận & Đăng Nhập'}
-              </button>
-              
-              <button 
-                type="button"
-                onClick={() => { setStep('email'); setOtp(''); setError(''); }}
-                className="w-full text-sm text-gray-500 hover:text-phuhung-blue mt-4"
-              >
-                Quay lại nhập Email
-              </button>
             </form>
           )}
         </div>
         
-        {/* Footer */}
-        <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
-           <p className="text-xs text-gray-400">© 2025 Phu Hung Assurance</p>
+        <div className="bg-gray-50 p-4 text-center text-xs text-gray-400 border-t border-gray-100 animate-enter" style={{ animationDelay: '600ms' }}>
+           © 2025 Phu Hung Assurance. All rights reserved.
         </div>
       </div>
     </div>

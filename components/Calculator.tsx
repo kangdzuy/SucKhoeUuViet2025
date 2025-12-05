@@ -46,7 +46,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
   return (
     <div className="min-h-screen bg-phuhung-bg pb-20 font-sans text-phuhung-text">
       {/* Header */}
-      <header className="bg-phuhung-blue text-white shadow-md sticky top-0 z-50">
+      <header className="bg-phuhung-blue text-white shadow-md sticky top-0 z-50 animate-enter">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-[72px] flex items-center justify-between">
           <div className="flex items-center gap-4">
              <button 
@@ -78,7 +78,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
       {/* Main Content */}
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
         
-        <div className="mb-6">
+        <div className="mb-6 animate-enter" style={{ animationDelay: '100ms' }}>
            <h1 className="text-2xl font-bold text-phuhung-text">Bảo Hiểm Sức Khỏe Ưu Việt</h1>
            <p className="text-phuhung-textSec mt-1 text-sm">Nhập thông tin chi tiết bên dưới, phí bảo hiểm sẽ được tính toán tự động ở cột bên phải.</p>
         </div>
@@ -86,11 +86,11 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
             {/* Left Column: Inputs (Take 8/12 space on large screens) */}
             <div className="xl:col-span-8 space-y-8">
-                <section>
+                <section className="animate-enter" style={{ animationDelay: '200ms' }}>
                     <GeneralInfoForm info={generalInfo} onChange={setGeneralInfo} />
                 </section>
 
-                <section>
+                <section className="animate-enter" style={{ animationDelay: '300ms' }}>
                     <InsuredList 
                         groups={groups} 
                         contractType={generalInfo.loaiHopDong}
@@ -100,7 +100,7 @@ const Calculator: React.FC<Props> = ({ onBack, userEmail }) => {
             </div>
 
             {/* Right Column: Sticky Results (Take 4/12 space) */}
-            <div className="xl:col-span-4 sticky top-[88px] z-30">
+            <div className="xl:col-span-4 sticky top-[88px] z-30 animate-enter" style={{ animationDelay: '400ms' }}>
                 {result && (
                     <ResultsSummary 
                         result={result} 

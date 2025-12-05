@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { SystemConfig, Geography } from '../types';
 import { configService } from '../services/configService';
@@ -10,14 +11,16 @@ interface Props {
 const AGE_GROUPS = ['0 - 10 tuổi', '11 - 17 tuổi', '18 - 50 tuổi', '51 - 65 tuổi', '66 - 70 tuổi'];
 
 const RATE_DEFINITIONS = [
-    { key: 'A_MAIN', label: 'A. Chết, thương tật vĩnh viễn do Tai nạn', sub: 'Tử vong / Thương tật' },
-    { key: 'A_ALLOWANCE_3_5', label: 'A1. Trợ cấp ngày trong thời gian điều trị do Tai nạn', sub: 'Gói 3 - 5 tháng' },
-    { key: 'A_ALLOWANCE_6_9', label: 'A1. Trợ cấp ngày trong thời gian điều trị do Tai nạn', sub: 'Gói 6 - 9 tháng' },
-    { key: 'A_ALLOWANCE_10_12', label: 'A1. Trợ cấp ngày trong thời gian điều trị do Tai nạn', sub: 'Gói 10 - 12 tháng' },
-    { key: 'A_MEDICAL_LOW', label: 'A2. Chi phí y tế do Tai nạn', sub: 'Hạn mức ≤ 40 triệu' },
-    { key: 'A_MEDICAL_MID1', label: 'A2. Chi phí y tế do Tai nạn', sub: 'Hạn mức 40 - 60 triệu' },
-    { key: 'A_MEDICAL_MID2', label: 'A2. Chi phí y tế do Tai nạn', sub: 'Hạn mức 60 - 100 triệu' },
-    { key: 'A_MEDICAL_HIGH', label: 'A2. Chi phí y tế do Tai nạn', sub: 'Hạn mức > 100 triệu' },
+    { key: 'A1_MAIN', label: 'A1. Tử vong/Thương tật toàn bộ vĩnh viễn', sub: 'Tỷ lệ phí cơ bản' },
+    { key: 'A2_MAIN', label: 'A2. Thương tật bộ phận vĩnh viễn', sub: 'Tỷ lệ phí cơ bản' },
+    
+    { key: 'A_ALLOWANCE_3_5', label: 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', sub: 'Gói 3 - 5 tháng' },
+    { key: 'A_ALLOWANCE_6_9', label: 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', sub: 'Gói 6 - 9 tháng' },
+    { key: 'A_ALLOWANCE_10_12', label: 'A3. Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', sub: 'Gói 10 - 12 tháng' },
+    { key: 'A_MEDICAL_LOW', label: 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', sub: 'Hạn mức ≤ 40 triệu' },
+    { key: 'A_MEDICAL_MID1', label: 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', sub: 'Hạn mức 40 - 60 triệu' },
+    { key: 'A_MEDICAL_MID2', label: 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', sub: 'Hạn mức 60 - 100 triệu' },
+    { key: 'A_MEDICAL_HIGH', label: 'A4. Chi phí y tế, chi phí vận chuyển cấp cứu', sub: 'Hạn mức > 100 triệu' },
     
     // BENEFIT B
     { key: 'B', label: 'B. Chết do ốm đau, bệnh tật', sub: 'Tỷ lệ phí cơ bản' },

@@ -1,5 +1,5 @@
 
-import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitASalaryOption, Gender, SystemConfig } from '../types';
+import { GeneralInfo, InsuranceGroup, CalculationResult, ContractType, BenefitAMethod, BenefitHMethod, BenefitBMethod, BenefitASalaryOption, Gender, SystemConfig } from '../types';
 import { getRateFromConfig } from './calculationService';
 
 // Helper to escape XML characters
@@ -77,8 +77,9 @@ export const exportToExcel = (
     Cell('Họ tên / Tên nhóm', 'sHeader'),
     Cell('Tuổi TB', 'sHeader'),
     Cell('Giới tính (Đại diện)', 'sHeader'),
+    Cell('Lương Cơ Bản', 'sHeader'), // Added Salary Column
     Cell('Số lượng', 'sHeader'),
-    Cell('Phạm vi', 'sHeader'), // Now per person
+    Cell('Phạm vi', 'sHeader'), // Now per person (Mixed)
     Cell('Thời hạn', 'sHeader'),
     Cell('Đồng chi trả', 'sHeader'), // Now per person
     Cell('Loss Ratio (Năm trước)', 'sHeader')
@@ -89,8 +90,9 @@ export const exportToExcel = (
       Cell(g.tenNhom),
       Cell(g.tuoiTrungBinh, 'sNumber'),
       Cell(g.gioiTinh || 'N/A'),
+      Cell(g.luongCoBan || 0, 'sCurrency'), // Export salary
       Cell(g.soNguoi, 'sNumber'),
-      Cell(g.phamViDiaLy),
+      Cell("Theo Quyền Lợi"), // Mixed Geo
       Cell(info.thoiHanBaoHiem),
       Cell(g.mucDongChiTra),
       Cell(info.tyLeBoiThuongNamTruoc, 'sNumber')
@@ -103,6 +105,7 @@ export const exportToExcel = (
     Cell('Tên Nhóm', 'sHeader'),
     Cell('Mã QL', 'sHeader'),
     Cell('Tên quyền lợi', 'sHeader'),
+    Cell('Phạm Vi (Geo)', 'sHeader'), // ADDED GEO COLUMN
     Cell('STBH (Hạn mức)', 'sHeader'),
     Cell('Tỷ lệ phí Cơ Bản (%)', 'sHeader'),
     Cell('Phí Gốc', 'sHeader'),
@@ -114,13 +117,13 @@ export const exportToExcel = (
 
   groups.forEach(g => {
     const age = g.tuoiTrungBinh;
-    const geo = g.phamViDiaLy; // Use group level Geo
+    // const geo = g.phamViDiaLy; // Use group level Geo -- NO, USE PER BENEFIT
 
     // Calculate group specific adjustment
     const percentCopay = -(config.copayDiscounts[g.mucDongChiTra] || 0);
     const adjFactor = 1 + result.percentGroup + result.percentLR + percentCopay;
 
-    const addBenRow = (code: string, name: string, selected: boolean, si: number, dep: string, method?: string, extra?: any, specificCount?: number) => {
+    const addBenRow = (code: string, name: string, selected: boolean, geo: string, si: number, dep: string, method?: string, extra?: any, specificCount?: number) => {
        let note = '';
        let rateBase = 0;
        let rateMin = 0;
@@ -159,9 +162,10 @@ export const exportToExcel = (
        }
 
        let displayCode = code;
-       if (code === 'A_MAIN') displayCode = 'A';
-       if (code === 'A_ALLOWANCE') displayCode = 'A1';
-       if (code === 'A_MEDICAL') displayCode = 'A2';
+       if (code === 'A1_MAIN') displayCode = 'A1';
+       if (code === 'A2_MAIN') displayCode = 'A2';
+       if (code === 'A_ALLOWANCE') displayCode = 'A3';
+       if (code === 'A_MEDICAL') displayCode = 'A4';
 
        // Only add row if selected (or keep structure but zero out)
        // Let's keep rows for selected benefits
@@ -170,6 +174,7 @@ export const exportToExcel = (
                 Cell(g.tenNhom),
                 Cell(displayCode),
                 Cell(name),
+                Cell(geo),
                 Cell(si, 'sNumber'),
                 Cell(rateBase, 'sPercent'),
                 Cell(Math.round(rawBaseFee), 'sCurrency'),
@@ -182,18 +187,26 @@ export const exportToExcel = (
     };
 
     let siA = g.stbhA;
-    if (g.methodA === BenefitAMethod.THEO_LUONG) siA = (g.luongA || 0) * (g.soThangLuongA || 0);
-    addBenRow('A_MAIN', 'Chết, thương tật vĩnh viễn do Tai nạn', g.chonQuyenLoiA, siA, '-');
+    if (g.methodA === BenefitAMethod.THEO_LUONG) siA = (g.luongCoBan || 0) * (g.soThangLuongA || 0);
+    
+    // Split A1 and A2 rows
+    addBenRow('A1_MAIN', 'Tử vong/Thương tật toàn bộ vĩnh viễn', g.chonQuyenLoiA && g.subA_A1, g.geoA, siA, '-');
+    addBenRow('A2_MAIN', 'Thương tật bộ phận vĩnh viễn', g.chonQuyenLoiA && g.subA_A2, g.geoA, siA, '-');
 
     let siA1 = 0;
-    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_3_5) siA1 = (g.luongA || 0) * 5;
-    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) siA1 = (g.luongA || 0) * 9;
-    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) siA1 = (g.luongA || 0) * 12;
-    addBenRow('A_ALLOWANCE', 'Trợ cấp ngày trong thời gian điều trị do Tai nạn', g.subA_TroCap, siA1, 'A', undefined, { option: g.subA_TroCap_Option });
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_3_5) siA1 = (g.luongCoBan || 0) * 5;
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_6_9) siA1 = (g.luongCoBan || 0) * 9;
+    if (g.subA_TroCap_Option === BenefitASalaryOption.OP_10_12) siA1 = (g.luongCoBan || 0) * 12;
+    addBenRow('A_ALLOWANCE', 'Trợ cấp lương ngày trong thời gian điều trị Thương tật tạm thời', g.subA_TroCap, g.geoA, siA1, 'A', undefined, { option: g.subA_TroCap_Option });
 
-    addBenRow('A_MEDICAL', 'Chi phí y tế do Tai nạn', g.subA_YTe, g.stbhA_YTe, 'A');
-    addBenRow('B', 'Chết do ốm đau, bệnh tật', g.chonQuyenLoiB, g.stbhB, '-');
-    addBenRow('C', 'Chi phí y tế nội trú do ốm đau, bệnh tật', g.chonQuyenLoiC, g.stbhC, '-');
+    addBenRow('A_MEDICAL', 'Chi phí y tế, chi phí vận chuyển cấp cứu', g.subA_YTe, g.geoA, g.stbhA_YTe, 'A');
+    
+    // Calculate SI B
+    let siB = g.stbhB;
+    if (g.methodB === BenefitBMethod.THEO_LUONG) siB = (g.luongCoBan || 0) * (g.soThangLuongB || 0);
+    addBenRow('B', 'Chết do ốm đau, bệnh tật', g.chonQuyenLoiB, g.geoB, siB, '-');
+    
+    addBenRow('C', 'Chi phí y tế nội trú do ốm đau, bệnh tật', g.chonQuyenLoiC, g.geoC, g.stbhC, '-');
 
     let maternityCount = 0;
     if (info.loaiHopDong === ContractType.CAN_HAN) {
@@ -201,21 +214,21 @@ export const exportToExcel = (
     } else {
         maternityCount = g.soNu || 0;
     }
-    addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.stbhD, 'C', undefined, undefined, maternityCount);
+    addBenRow('D', 'Thai sản', g.chonQuyenLoiD, g.geoD, g.stbhD, 'C', undefined, undefined, maternityCount);
 
-    addBenRow('E', 'Điều trị ngoại trú do ốm đau, bệnh tật', g.chonQuyenLoiE, g.stbhE, 'C');
-    addBenRow('F', 'Chăm sóc răng', g.chonQuyenLoiF, g.stbhF, 'C');
+    addBenRow('E', 'Điều trị ngoại trú do ốm đau, bệnh tật', g.chonQuyenLoiE, g.geoE, g.stbhE, 'C');
+    addBenRow('F', 'Chăm sóc răng', g.chonQuyenLoiF, g.geoF, g.stbhF, 'C');
     
     // G - Pass extra selection flags
-    addBenRow('G', 'Khám chữa bệnh và điều trị ở nước ngoài', g.chonQuyenLoiG, g.stbhG, 'C', undefined, { subG_YTe: g.subG_YTe, subG_VanChuyen: g.subG_VanChuyen });
+    addBenRow('G', 'Khám chữa bệnh và điều trị ở nước ngoài', g.chonQuyenLoiG, g.geoG, g.stbhG, 'C', undefined, { subG_YTe: g.subG_YTe, subG_VanChuyen: g.subG_VanChuyen });
 
     let siH = g.stbhH;
-    if (g.methodH === BenefitHMethod.THEO_LUONG) siH = (g.luongTrungBinh || 0) * (g.soThangLuong || 0);
+    if (g.methodH === BenefitHMethod.THEO_LUONG) siH = (g.luongCoBan || 0) * (g.soThangLuong || 0);
     // H - Pass extra selection flags
-    addBenRow('H', 'Trợ cấp mất giảm thu nhập', g.chonQuyenLoiH, siH, 'C', undefined, { subH_NamVien: g.subH_NamVien, subH_PhauThuat: g.subH_PhauThuat });
+    addBenRow('H', 'Trợ cấp mất giảm thu nhập', g.chonQuyenLoiH, g.geoH, siH, 'C', undefined, { subH_NamVien: g.subH_NamVien, subH_PhauThuat: g.subH_PhauThuat });
     
     // I - Pass extra selection flags
-    addBenRow('I', 'Ngộ độc thức ăn, đồ uống, hít phải khí độc', g.chonQuyenLoiI, g.stbhI, 'A', undefined, { subI_TuVong: g.subI_TuVong, subI_TroCap: g.subI_TroCap, subI_YTe: g.subI_YTe });
+    addBenRow('I', 'Ngộ độc thức ăn, đồ uống, hít phải khí độc', g.chonQuyenLoiI, g.geoI, g.stbhI, 'A', undefined, { subI_TuVong: g.subI_TuVong, subI_TroCap: g.subI_TroCap, subI_YTe: g.subI_YTe });
   });
 
 
